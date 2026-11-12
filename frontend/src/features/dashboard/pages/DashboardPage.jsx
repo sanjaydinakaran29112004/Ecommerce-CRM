@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Download, ShieldCheck, Briefcase, Headphones } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
+import { exportToCsv } from '@/utils/exportCsv';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -35,6 +36,20 @@ export function DashboardPage() {
     queryKey: ['orders-list'],
     queryFn: () => axiosClient.get(ENDPOINTS.ORDERS.LIST),
   });
+
+  // Export Dashboard Summary to CSV
+  const handleExportDashboard = () => {
+    const exportData = orders.map((o) => ({
+      OrderNumber: o.orderNumber,
+      Customer: o.customer.name,
+      Email: o.customer.email,
+      TotalAmount: o.pricing.total,
+      PaymentStatus: o.paymentStatus,
+      FulfillmentStatus: o.orderStatus,
+      Date: o.placedAt,
+    }));
+    exportToCsv(exportData, `dashboard_kpi_export_${dateFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
 
   // Dynamic role-aware greeting & contextual subtitle
   const getRoleContext = (role) => {
@@ -110,7 +125,12 @@ export function DashboardPage() {
             ))}
           </div>
 
-          <Button variant="outline" size="sm" leftIcon={<Download className="w-3.5 h-3.5" />}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportDashboard}
+            leftIcon={<Download className="w-3.5 h-3.5" />}
+          >
             Export
           </Button>
         </div>
