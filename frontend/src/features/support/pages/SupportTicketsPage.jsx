@@ -5,15 +5,29 @@ import { ENDPOINTS } from '@/services/api/endpoints';
 import { DataTable } from '@/components/data-display/DataTable';
 import { StatusChip } from '@/components/data-display/StatusChip';
 import { Drawer } from '@/components/ui/Drawer';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/utils/formatDate';
 import { mockDb } from '@/services/mock/mockDb';
-import { MessageSquare, Send, ShieldAlert, CheckCircle, Clock } from 'lucide-react';
+import { MessageSquare, Send, ShieldAlert, CheckCircle, Clock, Plus, User, Mail, Tag } from 'lucide-react';
 
 export function SupportTicketsPage() {
   const queryClient = useQueryClient();
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState('');
+  
+  // Create Ticket Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newTicket, setNewTicket] = useState({
+    customerName: '',
+    customerEmail: '',
+    orderNumber: '',
+    subject: '',
+    category: 'DELIVERY',
+    priority: 'MEDIUM',
+    initialMessage: '',
+  });
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['tickets-list'],
@@ -60,11 +74,62 @@ export function SupportTicketsPage() {
     },
   });
 
+  const createTicketMutation = useMutation({
+    mutationFn: async (ticketData) => {
+      const existing = mockDb.get('tickets');
+      const ticketEntry = {
+        id: `tkt_${Date.now()}`,
+        ticketNumber: `TKT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        customer: {
+          id: `cust_${Date.now()}`,
+          name: ticketData.customerName,
+          email: ticketData.customerEmail,
+        },
+        orderNumber: ticketData.orderNumber || 'None',
+        subject: ticketData.subject,
+        category: ticketData.category,
+        priority: ticketData.priority,
+        status: 'OPEN',
+        assignee: 'Priya Sundaram',
+        createdAt: new Date().toISOString(),
+        messages: [
+          {
+            id: `msg_${Date.now()}`,
+            sender: 'CUSTOMER',
+            name: ticketData.customerName,
+            text: ticketData.initialMessage || ticketData.subject,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      };
+      mockDb.set('tickets', [ticketEntry, ...existing]);
+      return ticketEntry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['tickets-list']);
+      setIsCreateModalOpen(false);
+      setNewTicket({
+        customerName: '',
+        customerEmail: '',
+        orderNumber: '',
+        subject: '',
+        category: 'DELIVERY',
+        priority: 'MEDIUM',
+        initialMessage: '',
+      });
+    },
+  });
+
   const handleSendReply = (e) => {
     e.preventDefault();
     if (replyText.trim() && selectedTicket) {
       sendReplyMutation.mutate({ ticketId: selectedTicket.id, text: replyText });
     }
+  };
+
+  const handleCreateSubmit = (e) => {
+    e.preventDefault();
+    createTicketMutation.mutate(newTicket);
   };
 
   const columns = [
@@ -151,7 +216,12 @@ export function SupportTicketsPage() {
           </p>
         </div>
 
-        <Button variant="primary" size="sm">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setIsCreateModalOpen(true)}
+          leftIcon={<Plus className="w-3.5 h-3.5" />}
+        >
           Create Ticket
         </Button>
       </div>
@@ -162,6 +232,104 @@ export function SupportTicketsPage() {
         isLoading={isLoading}
         onRowClick={(row) => setSelectedTicket(row)}
       />
+
+      {/* Create Ticket Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Raise Support Escalation Ticket"
+        description="Log an inbound customer issue, order inquiry, or delivery escalation"
+      >
+        <form onSubmit={handleCreateSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Customer Full Name"
+              value={newTicket.customerName}
+              onChange={(e) => setNewTicket({ ...newTicket, customerName: e.target.value })}
+              placeholder="e.g. Ramesh V"
+              leftIcon={<User className="w-4 h-4 text-slate-400" />}
+              required
+            />
+            <Input
+              label="Customer Email"
+              type="email"
+              value={newTicket.customerEmail}
+              onChange={(e) => setNewTicket({ ...newTicket, customerEmail: e.target.value })}
+              placeholder="ramesh@example.com"
+              leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Order Number (Optional)"
+              value={newTicket.orderNumber}
+              onChange={(e) => setNewTicket({ ...newTicket, orderNumber: e.target.value })}
+              placeholder="ORD-2026-9041"
+            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Category</label>
+              <select
+                value={newTicket.category}
+                onChange={(e) => setNewTicket({ ...newTicket, category: e.target.value })}
+                className="w-full text-xs rounded-lg border border-slate-300 p-2 bg-white font-medium"
+              >
+                <option value="DELIVERY">Delivery Delay</option>
+                <option value="PAYMENT">Payment / Transaction</option>
+                <option value="PRODUCT">Product Defect / Warranty</option>
+                <option value="RETURN">Return / Exchange</option>
+                <option value="ACCOUNT">Account / Invoice</option>
+                <option value="GENERAL">General Inquiry</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Ticket Subject"
+              value={newTicket.subject}
+              onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
+              placeholder="e.g. Courier tracking link shows incorrect city"
+              required
+            />
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Priority</label>
+              <select
+                value={newTicket.priority}
+                onChange={(e) => setNewTicket({ ...newTicket, priority: e.target.value })}
+                className="w-full text-xs rounded-lg border border-slate-300 p-2 bg-white font-medium"
+              >
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High (SLA: 4h)</option>
+                <option value="URGENT">Urgent (SLA: 1h)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Initial Customer Note / Message</label>
+            <textarea
+              rows={3}
+              value={newTicket.initialMessage}
+              onChange={(e) => setNewTicket({ ...newTicket, initialMessage: e.target.value })}
+              placeholder="Describe the customer's exact issue and request..."
+              className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white focus:outline-hidden focus:border-brand-500 font-sans"
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+            <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" size="sm" isLoading={createTicketMutation.isLoading}>
+              Open Ticket
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Ticket Conversation Drawer */}
       <Drawer
@@ -233,4 +401,3 @@ export function SupportTicketsPage() {
     </div>
   );
 }
-
