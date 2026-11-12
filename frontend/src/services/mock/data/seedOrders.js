@@ -1,0 +1,142 @@
+export const SEED_ORDERS = [
+  {
+    id: 'ord_501',
+    orderNumber: 'ORD-2026-9041',
+    customer: {
+      id: 'cust_101',
+      name: 'Ananya Krishnan',
+      email: 'ananya.k@gmail.com',
+      phone: '+91 98401 23456',
+    },
+    items: [
+      {
+        productId: 'prod_201',
+        name: 'Aura Pro Wireless ANC Headphones',
+        sku: 'EK-TECH-001',
+        quantity: 1,
+        unitPrice: 14999,
+        total: 14999,
+      },
+      {
+        productId: 'prod_205',
+        name: '100W GaN Fast Charger',
+        sku: 'EK-CHAR-005',
+        quantity: 2,
+        unitPrice: 3499,
+        total: 6998,
+      }
+    ],
+    pricing: {
+      subtotal: 21997,
+      discount: 1000,
+      tax: 3779,
+      shipping: 0,
+      total: 24776,
+    },
+    orderStatus: 'DELIVERED',
+    paymentStatus: 'PAID',
+    paymentMethod: 'UPI (Razorpay)',
+    shippingAddress: 'Flat 4B, Emerald Heights, Anna Nagar, Chennai 600040',
+    placedAt: '2026-03-01T10:15:00Z',
+    deliveredAt: '2026-03-04T16:30:00Z',
+  },
+  {
+    id: 'ord_502',
+    orderNumber: 'ORD-2026-9042',
+    customer: {
+      id: 'cust_102',
+      name: 'Vignesh Varadharajan',
+      email: 'vignesh.v@outlook.com',
+      phone: '+91 98840 54321',
+    },
+    items: [
+      {
+        productId: 'prod_203',
+        name: 'Ergonomic Mesh Executive Chair',
+        sku: 'EK-OFFC-003',
+        quantity: 1,
+        unitPrice: 22500,
+        total: 22500,
+      }
+    ],
+    pricing: {
+      subtotal: 22500,
+      discount: 0,
+      tax: 4050,
+      shipping: 500,
+      total: 27050,
+    },
+    orderStatus: 'SHIPPED',
+    paymentStatus: 'PAID',
+    paymentMethod: 'Credit Card',
+    shippingAddress: '12/8 Nehru Street, Gandhipuram, Coimbatore 641012',
+    placedAt: '2026-03-05T14:20:00Z',
+    deliveredAt: null,
+  },
+  {
+    id: 'ord_503',
+    orderNumber: 'ORD-2026-9043',
+    customer: {
+      id: 'cust_103',
+      name: 'Meenakshi Ramasamy',
+      email: 'meenakshi.r@yahoo.com',
+      phone: '+91 94432 99887',
+    },
+    items: [
+      {
+        productId: 'prod_202',
+        name: 'Titanium Smart Fitness Watch v4',
+        sku: 'EK-WEAR-002',
+        quantity: 2,
+        unitPrice: 8499,
+        total: 16998,
+      }
+    ],
+    pricing: {
+      subtotal: 16998,
+      discount: 1500,
+      tax: 2789,
+      shipping: 0,
+      total: 18287,
+    },
+    orderStatus: 'PROCESSING',
+    paymentStatus: 'PAID',
+    paymentMethod: 'NetBanking (HDFC)',
+    shippingAddress: '88, Race Course Road, Madurai 625002',
+    placedAt: '2026-03-08T09:45:00Z',
+    deliveredAt: null,
+  },
+  {
+    id: 'ord_504',
+    orderNumber: 'ORD-2026-9044',
+    customer: {
+      id: 'cust_104',
+      name: 'Deepak Chandrasekar',
+      email: 'deepak.c@techcorp.in',
+      phone: '+91 97910 11223',
+    },
+    items: [
+      {
+        productId: 'prod_205',
+        name: '100W GaN Fast Charger',
+        sku: 'EK-CHAR-005',
+        quantity: 1,
+        unitPrice: 3499,
+        total: 3499,
+      }
+    ],
+    pricing: {
+      subtotal: 3499,
+      discount: 0,
+      tax: 629,
+      shipping: 99,
+      total: 4227,
+    },
+    orderStatus: 'PLACED',
+    paymentStatus: 'PENDING',
+    paymentMethod: 'Cash on Delivery',
+    shippingAddress: 'Tower 3, Brigade Gateway, Malleshwaram, Bengaluru 560055',
+    placedAt: '2026-03-09T18:00:00Z',
+    deliveredAt: null,
+  },
+];
