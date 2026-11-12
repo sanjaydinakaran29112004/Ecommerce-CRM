@@ -1,3 +1,8 @@
+// Dynamic date generator for realistic seed timestamps
+const now = Date.now();
+const hour = 3600 * 1000;
+const day = 24 * hour;
+
 export const SEED_ORDERS = [
   {
     id: 'ord_501',
@@ -37,8 +42,8 @@ export const SEED_ORDERS = [
     paymentStatus: 'PAID',
     paymentMethod: 'UPI (Razorpay)',
     shippingAddress: 'Flat 4B, Emerald Heights, Anna Nagar, Chennai 600040',
-    placedAt: '2026-03-01T10:15:00Z',
-    deliveredAt: '2026-03-04T16:30:00Z',
+    placedAt: new Date(now - 3 * hour).toISOString(), // Today
+    deliveredAt: new Date(now - 1 * hour).toISOString(),
   },
   {
     id: 'ord_502',
@@ -70,7 +75,7 @@ export const SEED_ORDERS = [
     paymentStatus: 'PAID',
     paymentMethod: 'Credit Card',
     shippingAddress: '12/8 Nehru Street, Gandhipuram, Coimbatore 641012',
-    placedAt: '2026-03-05T14:20:00Z',
+    placedAt: new Date(now - 3 * day).toISOString(), // Within 7 Days
     deliveredAt: null,
   },
   {
@@ -103,7 +108,7 @@ export const SEED_ORDERS = [
     paymentStatus: 'PAID',
     paymentMethod: 'NetBanking (HDFC)',
     shippingAddress: '88, Race Course Road, Madurai 625002',
-    placedAt: '2026-03-08T09:45:00Z',
+    placedAt: new Date(now - 6 * day).toISOString(), // Within 7 Days
     deliveredAt: null,
   },
   {
@@ -136,8 +141,7 @@ export const SEED_ORDERS = [
     paymentStatus: 'PENDING',
     paymentMethod: 'Cash on Delivery',
     shippingAddress: 'Tower 3, Brigade Gateway, Malleshwaram, Bengaluru 560055',
-    placedAt: '2026-03-09T18:00:00Z',
+    placedAt: new Date(now - 10 * day).toISOString(), // Within This Month & 30 Days
     deliveredAt: null,
   },
 ];
-

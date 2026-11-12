@@ -33,7 +33,32 @@ export function initMockDb() {
 
   if (!storage.get(DB_KEYS.CUSTOMERS)) storage.set(DB_KEYS.CUSTOMERS, SEED_CUSTOMERS);
   if (!storage.get(DB_KEYS.PRODUCTS)) storage.set(DB_KEYS.PRODUCTS, SEED_PRODUCTS);
-  if (!storage.get(DB_KEYS.ORDERS)) storage.set(DB_KEYS.ORDERS, SEED_ORDERS);
+  if (!storage.get(DB_KEYS.ORDERS)) {
+    storage.set(DB_KEYS.ORDERS, SEED_ORDERS);
+  } else {
+    // Normalize historical order timestamps so dates are relative and realistic across the last 30 days
+    const existingOrders = storage.get(DB_KEYS.ORDERS);
+    const now = Date.now();
+    const day = 24 * 3600 * 1000;
+    let needsUpdate = false;
+    const normalized = existingOrders.map((o, idx) => {
+      const placed = new Date(o.placedAt).getTime();
+      const diffDays = (now - placed) / day;
+      if (diffDays > 35 || isNaN(placed) || (typeof o.placedAt === 'string' && o.placedAt.startsWith('2026-03'))) {
+        needsUpdate = true;
+        // Distribute smoothly: e.g. 1d ago, 3d ago, 6d ago, 10d ago, 14d ago, 20d ago, 25d ago
+        const daysAgo = ((idx % 8) * 3) + 1;
+        return {
+          ...o,
+          placedAt: new Date(now - daysAgo * day).toISOString(),
+        };
+      }
+      return o;
+    });
+    if (needsUpdate) {
+      storage.set(DB_KEYS.ORDERS, normalized);
+    }
+  }
   if (!storage.get(DB_KEYS.LEADS)) storage.set(DB_KEYS.LEADS, SEED_LEADS);
   if (!storage.get(DB_KEYS.TICKETS)) storage.set(DB_KEYS.TICKETS, SEED_TICKETS);
 }
