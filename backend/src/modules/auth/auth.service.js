@@ -35,8 +35,32 @@ class AuthService {
    * Login user with credentials
    */
   async login(email, password) {
+    const cleanEmail = (email || '').toLowerCase().trim();
     // Explicitly query password which has select: false
-    const user = await User.findOne({ email }).select('+password +refreshToken');
+    let user = await User.findOne({ email: cleanEmail }).select('+password +refreshToken');
+
+    // On-the-fly bootstrapping for the 4 official enterprise accounts if database is fresh
+    if (!user) {
+      const defaultAccounts = {
+        'sanjay@entrykode.com': { firstName: 'Sanjay', lastName: 'D', password: 'superadmin@123', role: 'SUPER_ADMIN' },
+        'ishwarya@entrykode.com': { firstName: 'Ishwarya', lastName: 'R', password: 'admin@123', role: 'ADMIN' },
+        'karthik@entrykode.com': { firstName: 'Karthik', lastName: 'Raja', password: 'sales@123', role: 'SALES_EMPLOYEE' },
+        'priya@entrykode.com': { firstName: 'Priya', lastName: 'Sundaram', password: 'support@123', role: 'SUPPORT_EMPLOYEE' },
+      };
+      const def = defaultAccounts[cleanEmail];
+      if (def && def.password === password) {
+        const created = await User.create({
+          firstName: def.firstName,
+          lastName: def.lastName,
+          email: cleanEmail,
+          password: def.password,
+          role: def.role,
+          isActive: true,
+        });
+        user = await User.findById(created._id).select('+password +refreshToken');
+      }
+    }
+
     if (!user) {
       throw new ApiError(STATUS_CODES.UNAUTHORIZED, 'Invalid email or password');
     }
