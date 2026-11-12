@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode, CheckCheck } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode, CheckCheck, MapPin, Phone, Mail, UserCheck, Check } from 'lucide-react';
 import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
 import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
 
@@ -46,10 +46,64 @@ export function OrdersPage() {
     triggerGateway: true,
   });
 
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders-list'],
     queryFn: () => axiosClient.get(ENDPOINTS.ORDERS.LIST),
   });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers-list'],
+    queryFn: () => axiosClient.get(ENDPOINTS.CUSTOMERS.LIST),
+    staleTime: 60 * 1000,
+  });
+
+  // Extract and normalize all registered CRM customers for 1-click auto-fill
+  const allCustomersList = React.useMemo(() => {
+    const dbCustomers = mockDb.get('customers') || [];
+    return dbCustomers.map((c) => {
+      const fullName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Valued Customer';
+      const addr = c.addresses?.[0]
+        ? `${c.addresses[0].addressLine}, ${c.addresses[0].city}, ${c.addresses[0].state} - ${c.addresses[0].pincode}`
+        : c.shippingAddress || 'Chennai, Tamil Nadu';
+      return {
+        id: c.id,
+        name: fullName,
+        email: c.email || '',
+        phone: c.phone || '+91 98401 23456',
+        customerType: c.customerType || 'RETURNING',
+        address: addr,
+        ordersCount: c.ordersCount || 1,
+      };
+    });
+  }, [customers]);
+
+  // Filter customer options as user types (e.g. typing "a" shows all matching customers)
+  const matchingCustomers = React.useMemo(() => {
+    const q = (manualOrder.customerName || '').toLowerCase().trim();
+    if (!q) {
+      return allCustomersList; // Show all when clicking/focusing
+    }
+    return allCustomersList.filter((c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.phone.includes(q)
+    );
+  }, [allCustomersList, manualOrder.customerName]);
+
+  const handleSelectCustomer = (customer) => {
+    setManualOrder((prev) => ({
+      ...prev,
+      customerName: customer.name,
+      customerEmail: customer.email,
+      customerPhone: customer.phone,
+      shippingAddress: customer.address,
+    }));
+    setSelectedCustomer(customer);
+    setIsCustomerDropdownOpen(false);
+  };
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }) => {
@@ -538,23 +592,162 @@ export function OrdersPage() {
         description="Process a telephone, offline, or assisted customer purchase with automated GST computation"
       >
         <form onSubmit={handleCreateSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Customer Name"
-              value={manualOrder.customerName}
-              onChange={(e) => setManualOrder({ ...manualOrder, customerName: e.target.value })}
-              placeholder="e.g. Ramesh V"
-              leftIcon={<User className="w-4 h-4 text-slate-400" />}
-              required
-            />
-            <Input
-              label="Customer Email"
-              type="email"
-              value={manualOrder.customerEmail}
-              onChange={(e) => setManualOrder({ ...manualOrder, customerEmail: e.target.value })}
-              placeholder="ramesh@example.com"
-              required
-            />
+          {/* Customer Selection & Real-Time Auto-Fill Dropdown */}
+          <div className="space-y-3">
+            {/* Linked Customer Badge Banner */}
+            {selectedCustomer && (
+              <div className="bg-emerald-50 border border-emerald-200/90 rounded-xl p-2.5 flex items-center justify-between text-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <span className="font-semibold text-emerald-900">
+                    Profile Linked: <strong>{selectedCustomer.name}</strong> ({selectedCustomer.customerType}) • All details auto-filled!
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCustomer(null);
+                    setManualOrder((prev) => ({
+                      ...prev,
+                      customerName: '',
+                      customerEmail: '',
+                      customerPhone: '',
+                      shippingAddress: '',
+                    }));
+                  }}
+                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+                >
+                  Clear / New
+                </button>
+              </div>
+            )}
+
+            <div className="relative">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Customer Name (Type to search registered customers or enter new)
+              </label>
+              <div className="relative">
+                <Input
+                  value={manualOrder.customerName}
+                  onChange={(e) => {
+                    setManualOrder({ ...manualOrder, customerName: e.target.value });
+                    setIsCustomerDropdownOpen(true);
+                    if (selectedCustomer && selectedCustomer.name !== e.target.value) {
+                      setSelectedCustomer(null);
+                    }
+                  }}
+                  onFocus={() => setIsCustomerDropdownOpen(true)}
+                  placeholder="Click or type e.g. 'A' (Ananya, Vignesh, Meenakshi...)"
+                  leftIcon={<User className="w-4 h-4 text-slate-400" />}
+                  required
+                />
+                {manualOrder.customerName && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomerDropdownOpen(!isCustomerDropdownOpen)}
+                    className="absolute right-2.5 top-2.5 text-[10px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200 cursor-pointer"
+                  >
+                    {isCustomerDropdownOpen ? 'Close ▲' : 'Options ▼'}
+                  </button>
+                )}
+              </div>
+
+              {/* Autocomplete Dropdown List */}
+              {isCustomerDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setIsCustomerDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <span>Select Registered Customer to Auto-Fill</span>
+                      <span className="text-brand-600">{matchingCustomers.length} Found</span>
+                    </div>
+
+                    {matchingCustomers.length > 0 ? (
+                      matchingCustomers.map((c) => {
+                        const initials = c.name
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()
+                          .slice(0, 2);
+
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => handleSelectCustomer(c)}
+                            className="p-3 hover:bg-brand-50/80 cursor-pointer transition-colors flex items-center justify-between gap-3 group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                                {initials}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-xs text-slate-900 group-hover:text-brand-700 truncate">
+                                    {c.name}
+                                  </span>
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border ${
+                                    c.customerType === 'VIP'
+                                      ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                  }`}>
+                                    {c.customerType}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 truncate">
+                                  <span>{c.email}</span>
+                                  <span>•</span>
+                                  <span>{c.phone}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                  📍 {c.address}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="text-[10px] font-bold text-brand-600 bg-brand-50 group-hover:bg-brand-600 group-hover:text-white px-2 py-1 rounded-md border border-brand-200 group-hover:border-brand-600 transition-all shrink-0">
+                              Auto-Fill ↵
+                            </span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-500">
+                        <p className="font-semibold text-slate-700">No registered customer matching "{manualOrder.customerName}"</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">You can proceed with this custom name as a new customer.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Customer Email & Phone Auto-Filled / Editable Fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Customer Email"
+                type="email"
+                value={manualOrder.customerEmail}
+                onChange={(e) => setManualOrder({ ...manualOrder, customerEmail: e.target.value })}
+                placeholder="customer@example.com"
+                leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
+                required
+              />
+              <Input
+                label="Customer Phone"
+                type="tel"
+                value={manualOrder.customerPhone}
+                onChange={(e) => setManualOrder({ ...manualOrder, customerPhone: e.target.value })}
+                placeholder="+91 98401 23456"
+                leftIcon={<Phone className="w-4 h-4 text-slate-400" />}
+                required
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2.5">
@@ -626,6 +819,7 @@ export function OrdersPage() {
             value={manualOrder.shippingAddress}
             onChange={(e) => setManualOrder({ ...manualOrder, shippingAddress: e.target.value })}
             placeholder="Flat, building, street, city, pin code"
+            leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
             required
           />
 
