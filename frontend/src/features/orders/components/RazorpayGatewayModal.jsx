@@ -32,7 +32,7 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
   const totalAmount = orderData?.pricing?.total || 17699;
   const orderNumber = orderData?.orderNumber || `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`;
 
-  // Reset state on open
+  // Reset state on open and automatically align with the order's chosen payment method!
   useEffect(() => {
     if (isOpen) {
       setStep('SELECT');
@@ -40,6 +40,18 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
       setCountdown(299);
       if (orderData?.customer?.name) {
         setCardName(orderData.customer.name);
+      }
+
+      // Auto-select method based on what was chosen on the order page!
+      const pm = (orderData?.paymentMethod || '').toLowerCase();
+      if (pm.includes('card')) {
+        setMethod('card');
+      } else if (pm.includes('netbanking') || pm.includes('net banking')) {
+        setMethod('netbanking');
+      } else if (pm.includes('cash on delivery') || pm.includes('cod')) {
+        setMethod('cod');
+      } else {
+        setMethod('upi');
       }
     }
   }, [isOpen, orderData]);
@@ -251,7 +263,30 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
               )}
 
               {method === 'card' && (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
+                  {/* Digital Credit/Debit Card Visual Preview */}
+                  <div className="w-full bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-900 text-white p-4 rounded-xl shadow-md border border-slate-700/80 relative overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold tracking-widest text-brand-300">EntryKode PayCard</span>
+                      <span className="font-extrabold italic text-sm text-amber-400">VISA</span>
+                    </div>
+
+                    <div className="mt-4 font-mono font-bold tracking-wider text-sm sm:text-base text-slate-100">
+                      {cardNumber || '•••• •••• •••• ••••'}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-[10px] text-slate-300 font-medium">
+                      <div>
+                        <span className="text-[8px] uppercase tracking-wider block text-slate-400">Cardholder</span>
+                        <span className="font-bold text-white uppercase">{cardName || 'Customer'}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[8px] uppercase tracking-wider block text-slate-400">Expires</span>
+                        <span className="font-bold font-mono text-white">{cardExpiry || 'MM/YY'}</span>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700 mb-1">Card Number</label>
                     <div className="relative">
@@ -300,27 +335,59 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
                       className="w-full text-xs p-2 rounded-lg border border-slate-300 font-medium focus:border-brand-500 focus:outline-hidden"
                     />
                   </div>
+
+                  <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-1">
+                    <Lock className="w-3 h-3 text-emerald-600 shrink-0" />
+                    <span>Protected by Visa Secure & Mastercard 3D-Secure 2.0 banking verification</span>
+                  </p>
                 </div>
               )}
 
               {method === 'netbanking' && (
                 <div className="space-y-3">
-                  <label className="block text-[11px] font-semibold text-slate-700">Select Popular Indian Bank</label>
+                  <label className="block text-[11px] font-semibold text-slate-700">1. Select Your Bank</label>
                   <div className="grid grid-cols-3 gap-2">
                     {['HDFC Bank', 'ICICI Bank', 'SBI Bank', 'Axis Bank', 'Kotak Bank', 'Punjab National'].map((bank) => (
                       <button
                         key={bank}
                         type="button"
                         onClick={() => setSelectedBank(bank)}
-                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition-all ${
+                        className={`p-2.5 rounded-lg border text-xs font-semibold text-center transition-all cursor-pointer ${
                           selectedBank === bank
                             ? 'border-brand-600 bg-brand-50 text-brand-700 ring-2 ring-brand-500/20'
-                            : 'border-slate-200 hover:border-slate-300 text-slate-700'
+                            : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
                         }`}
                       >
                         {bank}
                       </button>
                     ))}
+                  </div>
+
+                  {/* Simulated Bank Portal Credentials Form */}
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 mt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-brand-600" />
+                        <span className="text-xs font-bold text-slate-800">{selectedBank} NetBanking Portal</span>
+                      </div>
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-bold border border-emerald-200">
+                        Secure Gateway
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500">
+                      You will be verified securely via {selectedBank} Retail Banking 2-factor OTP authorization.
+                    </p>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Customer / User ID</label>
+                      <input
+                        type="text"
+                        defaultValue="409281729"
+                        placeholder="Enter Bank Customer ID"
+                        className="w-full text-xs p-2 rounded-lg border border-slate-300 font-mono font-medium focus:border-brand-500 focus:outline-hidden bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode } from 'lucide-react';
 import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
 import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
 
@@ -376,8 +376,22 @@ export function OrdersPage() {
                   }}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
                 >
-                  <CreditCard className="w-2.5 h-2.5" />
-                  <span>Pay Now</span>
+                  {row.paymentMethod?.toLowerCase().includes('card') ? (
+                    <>
+                      <CreditCard className="w-2.5 h-2.5" />
+                      <span>Pay via Card</span>
+                    </>
+                  ) : row.paymentMethod?.toLowerCase().includes('netbanking') ? (
+                    <>
+                      <Building2 className="w-2.5 h-2.5" />
+                      <span>Pay via NetBanking</span>
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="w-2.5 h-2.5" />
+                      <span>Pay via UPI</span>
+                    </>
+                  )}
                 </button>
                 <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pending</div>
               </div>
@@ -650,13 +664,27 @@ export function OrdersPage() {
               variant="primary"
               size="sm"
               isLoading={createOrderMutation.isLoading}
-              leftIcon={manualOrder.paymentMethod === 'Cash on Delivery' ? <Truck className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
+              leftIcon={
+                manualOrder.paymentMethod === 'Cash on Delivery' ? (
+                  <Truck className="w-3.5 h-3.5" />
+                ) : manualOrder.paymentMethod === 'NetBanking' ? (
+                  <Building2 className="w-3.5 h-3.5" />
+                ) : manualOrder.paymentMethod === 'Credit Card' ? (
+                  <CreditCard className="w-3.5 h-3.5" />
+                ) : (
+                  <QrCode className="w-3.5 h-3.5" />
+                )
+              }
             >
               {manualOrder.paymentMethod === 'Cash on Delivery'
                 ? 'Confirm Cash on Delivery Order'
-                : manualOrder.triggerGateway
-                ? 'Proceed to Razorpay Payment'
-                : 'Confirm Order (Offline Paid)'}
+                : !manualOrder.triggerGateway
+                ? 'Confirm Order (Offline Paid)'
+                : manualOrder.paymentMethod === 'Credit Card'
+                ? 'Proceed to Card Payment'
+                : manualOrder.paymentMethod === 'NetBanking'
+                ? 'Proceed to NetBanking Payment'
+                : 'Proceed to UPI / QR Payment'}
             </Button>
           </div>
         </form>
