@@ -7,6 +7,7 @@ import {
   X,
   Plus,
   Minus,
+  Truck,
 } from 'lucide-react';
 
 export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
@@ -19,6 +20,7 @@ export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
     image: '🎧',
   });
   const [qty, setQty] = useState(1);
+  const [paymentType, setPaymentType] = useState('ONLINE'); // 'ONLINE' | 'COD'
   const [customer, setCustomer] = useState({
     name: 'Rohan Deshmukh',
     email: 'rohan.d@gmail.com',
@@ -68,6 +70,7 @@ export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
   const total = subtotal + tax;
 
   const handleProceedToPayment = () => {
+    const isCod = paymentType === 'COD';
     const preparedOrder = {
       customer: {
         id: `cust_${Date.now()}`,
@@ -92,9 +95,9 @@ export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
         shipping: 0,
         total,
       },
-      orderStatus: 'PLACED',
+      orderStatus: isCod ? 'CONFIRMED' : 'PLACED',
       paymentStatus: 'PENDING',
-      paymentMethod: 'UPI (Razorpay)',
+      paymentMethod: isCod ? 'Cash on Delivery' : 'UPI (Razorpay)',
       shippingAddress: customer.address,
       placedAt: new Date().toISOString(),
       deliveredAt: null,
@@ -224,20 +227,71 @@ export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
             </div>
           </div>
 
+          {/* 3. Payment Method Selection */}
+          <div>
+            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+              3. Payment Option
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                onClick={() => setPaymentType('ONLINE')}
+                className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentType === 'ONLINE'
+                    ? 'border-brand-600 bg-brand-50/70 ring-2 ring-brand-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-brand-600" />
+                  <span className="text-xs font-bold text-slate-800">Online Payment</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">UPI (GPay/PhonePe), Card, NetBanking via Razorpay</p>
+              </div>
+
+              <div
+                onClick={() => setPaymentType('COD')}
+                className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                  paymentType === 'COD'
+                    ? 'border-amber-600 bg-amber-50/70 ring-2 ring-amber-500/20'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-bold text-slate-800">Cash on Delivery</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">Pay with cash at your doorstep upon parcel delivery</p>
+              </div>
+            </div>
+          </div>
+
           {/* Action Button */}
           <div className="pt-2 flex items-center justify-between">
             <span className="text-[11px] text-slate-400 flex items-center gap-1">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Instant Payment Gateway Integration (Razorpay)</span>
+              <span>{paymentType === 'COD' ? 'Verified Doorstep Courier Delivery' : 'Instant 256-bit Razorpay Gateway'}</span>
             </span>
 
             <button
               type="button"
               onClick={handleProceedToPayment}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 cursor-pointer transition-all active:scale-98"
+              className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-98 ${
+                paymentType === 'COD'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                  : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white shadow-brand-500/20'
+              }`}
             >
-              <CreditCard className="w-4 h-4" />
-              <span>Proceed to Pay {formatCurrency(total)}</span>
+              {paymentType === 'COD' ? (
+                <>
+                  <Truck className="w-4 h-4" />
+                  <span>Confirm Cash on Delivery ({formatCurrency(total)})</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4" />
+                  <span>Proceed to Online Payment ({formatCurrency(total)})</span>
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee } from 'lucide-react';
 import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
 import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
 
@@ -131,12 +131,46 @@ export function OrdersPage() {
     }
   };
 
+  // Handle Cash on Delivery Doorstep Collection
+  const handleMarkCodCollected = (order) => {
+    const existingOrders = mockDb.get('orders');
+    const updated = existingOrders.map((o) =>
+      o.id === order.id || o.orderNumber === order.orderNumber
+        ? {
+            ...o,
+            paymentStatus: 'PAID',
+            paymentMethod: 'Cash on Delivery (Collected)',
+            orderStatus: o.orderStatus === 'PLACED' ? 'CONFIRMED' : o.orderStatus,
+            paymentDetails: {
+              method: 'CASH_ON_DELIVERY',
+              status: 'COLLECTED',
+              collectedAt: new Date().toISOString(),
+              amount: o.pricing.total,
+            },
+          }
+        : o
+    );
+    mockDb.set('orders', updated);
+    queryClient.invalidateQueries(['orders-list']);
+    queryClient.invalidateQueries(['dashboard-metrics']);
+    if (selectedOrder && (selectedOrder.id === order.id || selectedOrder.orderNumber === order.orderNumber)) {
+      setSelectedOrder((prev) => ({
+        ...prev,
+        paymentStatus: 'PAID',
+        paymentMethod: 'Cash on Delivery (Collected)',
+      }));
+    }
+  };
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData) => {
       const existing = mockDb.get('orders');
       const subtotal = Number(orderData.unitPrice) * Number(orderData.quantity);
       const tax = Math.round(subtotal * 0.18);
       const total = subtotal + tax;
+
+      const isCod = orderData.paymentMethod === 'Cash on Delivery';
+      const shouldTriggerGateway = !isCod && Boolean(orderData.triggerGateway);
 
       const orderEntry = {
         id: `ord_${Date.now()}`,
@@ -164,8 +198,8 @@ export function OrdersPage() {
           shipping: 0,
           total,
         },
-        orderStatus: orderData.triggerGateway ? 'PLACED' : 'CONFIRMED',
-        paymentStatus: orderData.triggerGateway ? 'PENDING' : 'PAID',
+        orderStatus: isCod ? 'CONFIRMED' : shouldTriggerGateway ? 'PLACED' : 'CONFIRMED',
+        paymentStatus: isCod ? 'PENDING' : shouldTriggerGateway ? 'PENDING' : 'PAID',
         paymentMethod: orderData.paymentMethod,
         shippingAddress: orderData.shippingAddress,
         placedAt: new Date().toISOString(),
@@ -173,7 +207,7 @@ export function OrdersPage() {
       };
 
       mockDb.set('orders', [orderEntry, ...existing]);
-      return { orderEntry, triggerGateway: orderData.triggerGateway };
+      return { orderEntry, triggerGateway: shouldTriggerGateway };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries(['orders-list']);
@@ -191,7 +225,7 @@ export function OrdersPage() {
         triggerGateway: true,
       });
 
-      // If user chose instant online checkout, launch Razorpay Gateway immediately!
+      // If online payment, launch Razorpay Gateway immediately
       if (data.triggerGateway) {
         setGatewayOrder(data.orderEntry);
         setIsGatewayOpen(true);
@@ -203,17 +237,22 @@ export function OrdersPage() {
   const handleStorefrontOrder = (preparedOrder) => {
     const existing = mockDb.get('orders');
     const orderNumber = `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`;
+    const isCod = preparedOrder.paymentMethod === 'Cash on Delivery';
     const fullOrder = {
       ...preparedOrder,
       id: `ord_${Date.now()}`,
       orderNumber,
+      orderStatus: isCod ? 'CONFIRMED' : 'PLACED',
+      paymentStatus: 'PENDING',
     };
     mockDb.set('orders', [fullOrder, ...existing]);
     queryClient.invalidateQueries(['orders-list']);
 
-    // Directly open Razorpay Gateway for this Storefront purchase
-    setGatewayOrder(fullOrder);
-    setIsGatewayOpen(true);
+    // Only open Razorpay Gateway for Online Payments (not COD)
+    if (!isCod) {
+      setGatewayOrder(fullOrder);
+      setIsGatewayOpen(true);
+    }
   };
 
   const handleCreateSubmit = (e) => {
@@ -286,46 +325,67 @@ export function OrdersPage() {
     {
       header: 'Payment',
       accessor: 'paymentStatus',
-      render: (val, row) => (
-        <div>
-          {val === 'PAID' ? (
-            <div className="flex items-center gap-1.5">
-              <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                PAID
-              </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGatewayOrder(row);
-                  setIsGatewayOpen(true);
-                }}
-                title="View Razorpay Receipt"
-                className="text-[10px] text-brand-600 hover:text-brand-800 font-semibold underline cursor-pointer"
-              >
-                Receipt
-              </button>
-            </div>
-          ) : (
-            <div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGatewayOrder(row);
-                  setIsGatewayOpen(true);
-                }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
-              >
-                <CreditCard className="w-2.5 h-2.5" />
-                <span>Pay Now</span>
-              </button>
-              <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pending</div>
-            </div>
-          )}
-          <div className="text-[10px] text-slate-400 mt-0.5">{row.paymentMethod}</div>
-        </div>
-      ),
+      render: (val, row) => {
+        const isCod = row.paymentMethod?.toLowerCase().includes('cash on delivery');
+        return (
+          <div>
+            {val === 'PAID' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {isCod ? 'COD PAID' : 'PAID'}
+                </span>
+                {!isCod && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setGatewayOrder(row);
+                      setIsGatewayOpen(true);
+                    }}
+                    title="View Razorpay Receipt"
+                    className="text-[10px] text-brand-600 hover:text-brand-800 font-semibold underline cursor-pointer"
+                  >
+                    Receipt
+                  </button>
+                )}
+              </div>
+            ) : isCod ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkCodCollected(row);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
+                  title="Mark Cash Collected upon Doorstep Delivery"
+                >
+                  <IndianRupee className="w-2.5 h-2.5" />
+                  <span>Collect Cash</span>
+                </button>
+                <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pay at Doorstep</div>
+              </div>
+            ) : (
+              <div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGatewayOrder(row);
+                    setIsGatewayOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
+                >
+                  <CreditCard className="w-2.5 h-2.5" />
+                  <span>Pay Now</span>
+                </button>
+                <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pending</div>
+              </div>
+            )}
+            <div className="text-[10px] text-slate-400 mt-0.5">{row.paymentMethod}</div>
+          </div>
+        );
+      },
     },
     {
       header: 'Fulfillment Status',
@@ -509,13 +569,21 @@ export function OrdersPage() {
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Payment Method</label>
               <select
                 value={manualOrder.paymentMethod}
-                onChange={(e) => setManualOrder({ ...manualOrder, paymentMethod: e.target.value })}
+                onChange={(e) => {
+                  const method = e.target.value;
+                  const isCod = method === 'Cash on Delivery';
+                  setManualOrder({
+                    ...manualOrder,
+                    paymentMethod: method,
+                    triggerGateway: !isCod,
+                  });
+                }}
                 className="w-full text-xs rounded-lg border border-slate-300 p-2 bg-white font-medium"
               >
                 <option value="UPI (Razorpay)">UPI (Razorpay)</option>
                 <option value="Credit Card">Credit Card</option>
                 <option value="NetBanking">NetBanking</option>
-                <option value="Cash on Delivery">Cash on Delivery</option>
+                <option value="Cash on Delivery">Cash on Delivery (Pay at Doorstep)</option>
               </select>
             </div>
 
@@ -536,25 +604,42 @@ export function OrdersPage() {
             required
           />
 
-          {/* Interactive Payment Gateway Option */}
-          <div className="bg-brand-50/70 p-3 rounded-xl border border-brand-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-600" />
-              <div>
-                <span className="text-xs font-bold text-brand-900 block">Payment Gateway Checkout</span>
-                <span className="text-[10px] text-brand-700">Open live Razorpay popup to simulate real customer payment</span>
+          {/* Conditional Payment Method Feedback */}
+          {manualOrder.paymentMethod === 'Cash on Delivery' ? (
+            <div className="bg-amber-50/90 p-3.5 rounded-xl border border-amber-200/90 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-amber-900 block">Cash on Delivery (Pay at Doorstep)</span>
+                  <span className="text-[11px] text-amber-700">Zero advance payment required. Cash will be collected by courier upon delivery.</span>
+                </div>
               </div>
+              <span className="text-[10px] font-bold text-amber-800 bg-white border border-amber-300 px-2.5 py-1 rounded-md shadow-2xs shrink-0">
+                Doorstep Cash
+              </span>
             </div>
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={manualOrder.triggerGateway}
-                onChange={(e) => setManualOrder({ ...manualOrder, triggerGateway: e.target.checked })}
-                className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
-              />
-              <span>Launch Razorpay Gateway</span>
-            </label>
-          </div>
+          ) : (
+            <div className="bg-brand-50/70 p-3 rounded-xl border border-brand-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-brand-600" />
+                <div>
+                  <span className="text-xs font-bold text-brand-900 block">Payment Gateway Checkout</span>
+                  <span className="text-[10px] text-brand-700">Open live Razorpay popup to simulate real customer payment</span>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={manualOrder.triggerGateway}
+                  onChange={(e) => setManualOrder({ ...manualOrder, triggerGateway: e.target.checked })}
+                  className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
+                />
+                <span>Launch Razorpay Gateway</span>
+              </label>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
@@ -565,9 +650,13 @@ export function OrdersPage() {
               variant="primary"
               size="sm"
               isLoading={createOrderMutation.isLoading}
-              leftIcon={<CreditCard className="w-3.5 h-3.5" />}
+              leftIcon={manualOrder.paymentMethod === 'Cash on Delivery' ? <Truck className="w-3.5 h-3.5" /> : <CreditCard className="w-3.5 h-3.5" />}
             >
-              {manualOrder.triggerGateway ? 'Proceed to Razorpay Payment' : 'Confirm Order (Offline Paid)'}
+              {manualOrder.paymentMethod === 'Cash on Delivery'
+                ? 'Confirm Cash on Delivery Order'
+                : manualOrder.triggerGateway
+                ? 'Proceed to Razorpay Payment'
+                : 'Confirm Order (Offline Paid)'}
             </Button>
           </div>
         </form>
@@ -598,7 +687,19 @@ export function OrdersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {selectedOrder.paymentStatus === 'PENDING' ? (
+                {selectedOrder.paymentMethod?.toLowerCase().includes('cash on delivery') ? (
+                  selectedOrder.paymentStatus !== 'PAID' ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Truck className="w-3.5 h-3.5" />}
+                      onClick={() => handleMarkCodCollected(selectedOrder)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      Collect Doorstep Cash
+                    </Button>
+                  ) : null
+                ) : selectedOrder.paymentStatus === 'PENDING' ? (
                   <Button
                     variant="primary"
                     size="sm"

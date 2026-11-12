@@ -13,6 +13,7 @@ import {
   Loader2,
   Copy,
   Check,
+  Truck,
 } from 'lucide-react';
 
 export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSuccess }) {
@@ -57,26 +58,27 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
   const handleSimulatePayment = () => {
     setStep('PROCESSING');
 
-    // Realistic banking latency simulation
+    // Realistic banking latency simulation (or instant verification for COD)
+    const delay = method === 'cod' ? 500 : 1800;
     setTimeout(() => {
-      const generatedPayId = `pay_Rzp${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-      const generatedRrn = `RRN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+      const generatedPayId = method === 'cod' ? `cod_Ref${Date.now().toString().slice(-6)}` : `pay_Rzp${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+      const generatedRrn = method === 'cod' ? 'COD-PAY-ON-DELIVERY' : `RRN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
       const result = {
         paymentId: generatedPayId,
         bankRrn: generatedRrn,
-        method: method.toUpperCase(),
+        method: method === 'cod' ? 'Cash on Delivery' : method.toUpperCase(),
         amount: totalAmount,
-        paidAt: new Date().toISOString(),
+        paidAt: method === 'cod' ? null : new Date().toISOString(),
         orderNumber,
         customerName: orderData?.customer?.name || cardName,
-        status: 'CAPTURED',
+        status: method === 'cod' ? 'COD_PENDING' : 'CAPTURED',
       };
       setPaymentResult(result);
       setStep('SUCCESS');
       if (onPaymentSuccess) {
         onPaymentSuccess(result);
       }
-    }, 1800);
+    }, delay);
   };
 
   const copyPaymentId = () => {
@@ -162,6 +164,18 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
               >
                 <Building2 className="w-4 h-4 shrink-0" />
                 <span>Net Banking</span>
+              </button>
+
+              <button
+                onClick={() => setMethod('cod')}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all ${
+                  method === 'cod'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Truck className="w-4 h-4 shrink-0" />
+                <span>Cash on Delivery</span>
               </button>
 
               <div className="pt-4 px-2">
@@ -311,6 +325,24 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
                 </div>
               )}
 
+              {method === 'cod' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                      <Truck className="w-4 h-4 text-amber-700" />
+                      <span>Pay with Cash at Doorstep</span>
+                    </div>
+                    <p className="text-xs text-amber-900/80 leading-relaxed">
+                      Zero advance online payment required. Pay <strong className="text-amber-950 font-bold">{formatCurrency(totalAmount)}</strong> in cash directly to our delivery courier when the package is delivered.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
+                    <span className="font-semibold block text-slate-800 mb-0.5">Delivery Address:</span>
+                    <p className="text-[11px] text-slate-500">{orderData?.shippingAddress || 'Customer shipping address on file'}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Bottom Action Footer */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3 mt-4">
                 <button
@@ -324,10 +356,23 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
                 <button
                   type="button"
                   onClick={handleSimulatePayment}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-98"
+                  className={`px-5 py-2.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-98 ${
+                    method === 'cod'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/20'
+                  }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
-                  <span>Authorize & Pay {formatCurrency(totalAmount)}</span>
+                  {method === 'cod' ? (
+                    <>
+                      <Truck className="w-3.5 h-3.5" />
+                      <span>Confirm COD Order ({formatCurrency(totalAmount)})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                      <span>Authorize & Pay {formatCurrency(totalAmount)}</span>
+                    </>
+                  )}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -364,12 +409,18 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
             </div>
 
             <div className="space-y-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Payment Captured</span>
+              <span className={`text-xs font-bold uppercase tracking-wider ${paymentResult.method === 'Cash on Delivery' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                {paymentResult.method === 'Cash on Delivery' ? 'Order Confirmed (Cash on Delivery)' : 'Payment Captured'}
+              </span>
               <h3 className="text-xl font-extrabold text-slate-900">
-                {formatCurrency(paymentResult.amount)} Successfully Paid!
+                {paymentResult.method === 'Cash on Delivery'
+                  ? `Order Confirmed — ${formatCurrency(paymentResult.amount)}`
+                  : `${formatCurrency(paymentResult.amount)} Successfully Paid!`}
               </h3>
               <p className="text-xs text-slate-500">
-                Order <strong className="text-slate-800">{paymentResult.orderNumber}</strong> has been marked as <strong>PAID</strong>.
+                {paymentResult.method === 'Cash on Delivery'
+                  ? `Order ${paymentResult.orderNumber} is confirmed. Please keep cash ready when courier arrives.`
+                  : `Order ${paymentResult.orderNumber} has been successfully verified & marked as PAID.`}
               </p>
             </div>
 
