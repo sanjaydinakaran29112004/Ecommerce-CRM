@@ -111,11 +111,10 @@ export function DashboardPage() {
               <button
                 key={range}
                 onClick={() => setDateFilter(range)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                  dateFilter === range
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${dateFilter === range
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 {range === 'today' && 'Today'}
                 {range === '7_days' && '7 Days'}

@@ -16,10 +16,21 @@ const DB_KEYS = {
 };
 
 /**
- * Initializes the mock database with seed data if keys don't already exist in localStorage
+ * Initializes the mock database with seed data and verifies password integrity
  */
 export function initMockDb() {
-  if (!storage.get(DB_KEYS.USERS)) storage.set(DB_KEYS.USERS, SEED_USERS);
+  const existingUsers = storage.get(DB_KEYS.USERS);
+  if (!existingUsers || existingUsers.length === 0 || !existingUsers[0].password) {
+    storage.set(DB_KEYS.USERS, SEED_USERS);
+  } else {
+    // Ensure all 4 seed users have their active credentials and normalized roles
+    const mergedUsers = SEED_USERS.map((su) => {
+      const found = existingUsers.find((eu) => eu.email.toLowerCase() === su.email.toLowerCase());
+      return found ? { ...found, password: su.password, role: su.role, permissions: su.permissions } : su;
+    });
+    storage.set(DB_KEYS.USERS, mergedUsers);
+  }
+
   if (!storage.get(DB_KEYS.CUSTOMERS)) storage.set(DB_KEYS.CUSTOMERS, SEED_CUSTOMERS);
   if (!storage.get(DB_KEYS.PRODUCTS)) storage.set(DB_KEYS.PRODUCTS, SEED_PRODUCTS);
   if (!storage.get(DB_KEYS.ORDERS)) storage.set(DB_KEYS.ORDERS, SEED_ORDERS);
@@ -39,4 +50,3 @@ export const mockDb = {
     storage.set(DB_KEYS.TICKETS, SEED_TICKETS);
   }
 };
-

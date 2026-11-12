@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_MODULES, ROLES } from '@/config/permissions.config';
+import { ROLE_MODULES, ROLES, ROLE_LABELS } from '@/config/permissions.config';
 import {
   LayoutDashboard,
   Users,
@@ -18,8 +18,6 @@ import {
   Settings,
   ShieldCheck,
   Shield,
-  Briefcase,
-  Headphones,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -40,8 +38,13 @@ const NAV_ITEMS = [
 export function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
 
-  // Filter modules permitted for the logged-in person's role
-  const permittedPaths = ROLE_MODULES[user?.role] || ROLE_MODULES[ROLES.SALES_EMPLOYEE];
+  // Normalize any role aliases (e.g. SUPPORT_MANAGER -> SUPPORT_EMPLOYEE)
+  let currentRole = user?.role || ROLES.SALES_EMPLOYEE;
+  if (currentRole === 'SUPPORT_MANAGER') currentRole = ROLES.SUPPORT_EMPLOYEE;
+  if (currentRole === 'SALES_MANAGER') currentRole = ROLES.SALES_EMPLOYEE;
+
+  // Filter modules permitted strictly for the logged-in person's role
+  const permittedPaths = ROLE_MODULES[currentRole] || ROLE_MODULES[ROLES.SALES_EMPLOYEE];
   const visibleNavItems = NAV_ITEMS.filter((item) => permittedPaths.includes(item.path));
 
   // Role Badge Styling
@@ -50,17 +53,19 @@ export function Sidebar({ isOpen, onClose }) {
       case ROLES.SUPER_ADMIN:
         return { label: 'Super Admin', color: 'text-purple-400 bg-purple-950/60 border-purple-800' };
       case ROLES.ADMIN:
-        return { label: 'Admin', color: 'text-brand-400 bg-brand-950/60 border-brand-800' };
+        return { label: 'Admin', color: 'text-indigo-400 bg-indigo-950/60 border-indigo-800' };
       case ROLES.SALES_EMPLOYEE:
+      case 'SALES_MANAGER':
         return { label: 'Sales Employee', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-800' };
       case ROLES.SUPPORT_EMPLOYEE:
+      case 'SUPPORT_MANAGER':
         return { label: 'Support Employee', color: 'text-amber-400 bg-amber-950/60 border-amber-800' };
       default:
-        return { label: 'Employee', color: 'text-slate-400 bg-slate-800 border-slate-700' };
+        return { label: 'Staff Member', color: 'text-slate-400 bg-slate-800 border-slate-700' };
     }
   };
 
-  const roleInfo = getRoleBadge(user?.role);
+  const roleInfo = getRoleBadge(currentRole);
 
   return (
     <>
@@ -92,10 +97,10 @@ export function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Navigation Items (Dynamically tailored to the person's role) */}
+        {/* Navigation Items (Tailored strictly to logged-in person) */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Navigation Menu ({visibleNavItems.length} Modules)
+            Assigned Scope ({visibleNavItems.length} Modules)
           </div>
 
           {visibleNavItems.map((item) => {
@@ -121,7 +126,7 @@ export function Sidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        {/* User Profile Card in Sidebar Footer */}
+        {/* Logged in User Profile in Sidebar Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
           <div className="flex items-center gap-3">
             <img
@@ -130,7 +135,7 @@ export function Sidebar({ isOpen, onClose }) {
               className="w-9 h-9 rounded-full object-cover border border-slate-700 shrink-0"
             />
             <div className="overflow-hidden flex-1">
-              <p className="text-xs font-semibold text-white truncate">{user?.name || 'Sanjay D'}</p>
+              <p className="text-xs font-semibold text-white truncate">{user?.name || 'Authorized User'}</p>
               <div className="mt-0.5">
                 <span
                   className={cn(

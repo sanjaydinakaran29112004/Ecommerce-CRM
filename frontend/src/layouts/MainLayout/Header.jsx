@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
-import { Menu, Search, Bell, LogOut, UserCheck, Shield, CheckCheck, ShoppingBag, AlertTriangle, LifeBuoy, RotateCcw } from 'lucide-react';
+import { Menu, Search, Bell, LogOut, Shield, CheckCheck, ShoppingBag, AlertTriangle, LifeBuoy, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 const INITIAL_NOTIFICATIONS = [
@@ -46,7 +46,7 @@ const INITIAL_NOTIFICATIONS = [
 
 export function Header({ onMenuClick }) {
   const navigate = useNavigate();
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,15 +65,17 @@ export function Header({ onMenuClick }) {
     }
   };
 
-  const getRoleBadgeColor = (role) => {
+  const getRoleBadgeStyle = (role) => {
     switch (role) {
       case ROLES.SUPER_ADMIN:
         return 'bg-purple-50 text-purple-700 border-purple-200';
       case ROLES.ADMIN:
-        return 'bg-brand-50 text-brand-700 border-brand-200';
+        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
       case ROLES.SALES_EMPLOYEE:
+      case 'SALES_MANAGER':
         return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case ROLES.SUPPORT_EMPLOYEE:
+      case 'SUPPORT_MANAGER':
         return 'bg-amber-50 text-amber-700 border-amber-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
@@ -90,7 +92,7 @@ export function Header({ onMenuClick }) {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Global Search Bar with working Enter navigation */}
+        {/* Global Search Bar */}
         <form onSubmit={handleSearchSubmit} className="relative hidden md:block w-72 lg:w-96">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -104,36 +106,28 @@ export function Header({ onMenuClick }) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Active Role Indicator Badge */}
-        <div className="hidden lg:flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-medium">Logged in as:</span>
+        {/* Authenticated Person Info & Role Badge */}
+        <div className="flex items-center gap-2.5">
+          <div className="text-right hidden sm:block">
+            <div className="text-xs font-bold text-slate-900 leading-tight">
+              {user?.name || 'Staff Member'}
+            </div>
+            <div className="text-[10px] text-slate-400 truncate">
+              {user?.email || 'authenticated'}
+            </div>
+          </div>
+
           <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${getRoleBadgeColor(
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${getRoleBadgeStyle(
               user?.role
             )}`}
           >
             <Shield className="w-3 h-3" />
-            <span>{ROLE_LABELS[user?.role] || 'Employee'}</span>
+            <span>{ROLE_LABELS[user?.role] || user?.role?.replace(/_/g, ' ') || 'Employee'}</span>
           </span>
         </div>
 
-        {/* Quick Role Switcher (Strictly 4 Roles) */}
-        <div className="flex items-center gap-1.5 bg-slate-100/90 px-2.5 py-1 rounded-lg border border-slate-200">
-          <UserCheck className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-          <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">Role:</span>
-          <select
-            value={user?.role}
-            onChange={(e) => switchRole(e.target.value)}
-            className="text-xs bg-transparent font-semibold text-slate-800 focus:outline-hidden cursor-pointer"
-          >
-            <option value={ROLES.SUPER_ADMIN}>Super Admin (Sanjay D)</option>
-            <option value={ROLES.ADMIN}>Admin (Ishwarya R)</option>
-            <option value={ROLES.SALES_EMPLOYEE}>Sales Employee (Karthik)</option>
-            <option value={ROLES.SUPPORT_EMPLOYEE}>Support Employee (Priya)</option>
-          </select>
-        </div>
-
-        {/* Working Notifications Bell Dropdown */}
+        {/* Notifications Bell Dropdown */}
         <div className="relative">
           <button
             onClick={() => setIsNotifOpen(!isNotifOpen)}
@@ -148,7 +142,6 @@ export function Header({ onMenuClick }) {
             )}
           </button>
 
-          {/* Notifications Popover */}
           {isNotifOpen && (
             <>
               <div
@@ -158,7 +151,7 @@ export function Header({ onMenuClick }) {
               <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-slate-800">Notifications</span>
+                    <span className="font-bold text-xs text-slate-800">System Notifications</span>
                     {unreadCount > 0 && (
                       <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200">
                         {unreadCount} new
@@ -209,14 +202,15 @@ export function Header({ onMenuClick }) {
           )}
         </div>
 
-        {/* Logout Button */}
+        {/* Real Working Logout Button */}
         <div className="flex items-center pl-2 border-l border-slate-200">
           <Button
             variant="ghost"
             size="sm"
             onClick={logout}
             leftIcon={<LogOut className="w-4 h-4 text-slate-500" />}
-            className="text-xs text-slate-600 hover:text-rose-600"
+            className="text-xs text-slate-700 hover:text-rose-600 font-semibold"
+            title="Sign out of your session"
           >
             Logout
           </Button>

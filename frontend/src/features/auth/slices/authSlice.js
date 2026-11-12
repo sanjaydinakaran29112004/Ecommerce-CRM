@@ -1,14 +1,13 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { storage } from '@/utils/storage';
-import { SEED_USERS } from '@/services/mock/data/seedUsers';
 
-const storedUser = storage.get('crm_user', SEED_USERS[0]); // Default to Super Admin for smooth preview
-const storedToken = storage.get('crm_access_token', storedUser?.token || null);
+const storedUser = storage.get('crm_user', null);
+const storedToken = storage.get('crm_access_token', null);
 
 const initialState = {
   user: storedUser,
   token: storedToken,
-  isAuthenticated: !!storedToken,
+  isAuthenticated: !!storedToken && !!storedUser,
   isLoading: false,
   error: null,
 };
@@ -44,18 +43,8 @@ export const authSlice = createSlice({
       storage.remove('crm_user');
       storage.remove('crm_access_token');
     },
-    switchRolePreview: (state, action) => {
-      const targetUser = SEED_USERS.find(u => u.role === action.payload);
-      if (targetUser) {
-        state.user = targetUser;
-        state.token = targetUser.token;
-        storage.set('crm_user', targetUser);
-        storage.set('crm_access_token', targetUser.token);
-      }
-    }
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, switchRolePreview } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout } = authSlice.actions;
 export default authSlice.reducer;
-

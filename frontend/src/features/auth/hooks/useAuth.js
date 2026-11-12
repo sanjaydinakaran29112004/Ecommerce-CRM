@@ -1,10 +1,13 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout, switchRolePreview } from '../slices/authSlice';
+import { useNavigate } from 'react-router-dom';
+import { loginStart, loginSuccess, loginFailure, logout } from '../slices/authSlice';
 import { axiosClient } from '@/services/api/axiosClient';
 import { ENDPOINTS } from '@/services/api/endpoints';
+import { storage } from '@/utils/storage';
 
 export function useAuth() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const auth = useSelector((state) => state.auth);
 
   const login = async (credentials) => {
@@ -33,6 +36,9 @@ export function useAuth() {
 
   const handleLogout = () => {
     dispatch(logout());
+    storage.remove('crm_user');
+    storage.remove('crm_access_token');
+    navigate('/login', { replace: true });
   };
 
   const hasPermission = (permissionKey) => {
@@ -42,12 +48,9 @@ export function useAuth() {
 
   const hasRole = (role) => {
     if (!auth.user) return false;
-    if (Array.isArray(role)) return role.includes(auth.user.role);
-    return auth.user.role === role;
-  };
-
-  const switchRole = (role) => {
-    dispatch(switchRolePreview(role));
+    const currentRole = auth.user.role;
+    if (Array.isArray(role)) return role.includes(currentRole);
+    return currentRole === role;
   };
 
   return {
@@ -61,6 +64,5 @@ export function useAuth() {
     logout: handleLogout,
     hasPermission,
     hasRole,
-    switchRole,
   };
 }

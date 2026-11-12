@@ -5,42 +5,39 @@ import { SEED_USERS } from '@/services/mock/data/seedUsers';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import { Lock, Mail, AlertCircle, ArrowRight, Sparkles, UserPlus } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, UserPlus, KeyRound, Copy } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, isLoading, error } = useAuth();
 
-  const [email, setEmail] = useState('sanjay@entrykode.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await login({ email, password });
+    if (!email.trim()) return;
+    const result = await login({ email: email.trim(), password });
     if (result.success) {
       navigate('/dashboard');
     }
   };
 
-  const handleQuickLogin = async (user) => {
+  const handleSelectRoleAccount = (user) => {
     setEmail(user.email);
-    setPassword('password123');
-    const result = await login({ email: user.email, password: 'password123' });
-    if (result.success) {
-      navigate('/dashboard');
-    }
+    setPassword(user.password);
   };
 
   return (
-    <Card className="border-slate-200/90 shadow-lg">
+    <Card className="border-slate-200/90 shadow-xl bg-white">
       <CardHeader
-        title="Sign in to your account"
-        subtitle="Authenticate to view and manage your assigned e-commerce CRM workspace"
+        title="Sign in to your CRM workspace"
+        subtitle="Enter your assigned employee email and password to access your role-specific portal"
       />
 
       <CardContent className="space-y-4 pt-2">
         {error && (
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-700 text-xs">
+          <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-700 text-xs font-medium animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -48,21 +45,21 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Corporate Email Address"
+            label="Corporate Email ID"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@entrykode.com"
+            placeholder="e.g. sanjay@entrykode.com"
             leftIcon={<Mail className="w-4 h-4" />}
             required
           />
 
           <Input
-            label="Password"
+            label="Account Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            placeholder="Enter role password..."
             leftIcon={<Lock className="w-4 h-4" />}
             required
           />
@@ -72,9 +69,7 @@ export function LoginPage() {
               <input type="checkbox" defaultChecked className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
               <span>Remember this session</span>
             </label>
-            <a href="#" className="font-medium text-brand-600 hover:text-brand-700">
-              Forgot password?
-            </a>
+            <span className="text-slate-400">Secure 256-bit JWT Session</span>
           </div>
 
           <Button
@@ -101,23 +96,45 @@ export function LoginPage() {
           </Link>
         </div>
 
-        {/* Quick Demo Profiles (Strictly 4 Roles) */}
-        <div className="pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-2.5">
-            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-            <span>Quick 1-Click Login (4 System Roles):</span>
+        {/* 4 Official Role Access Credentials Cards */}
+        <div className="pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2.5">
+            <KeyRound className="w-3.5 h-3.5 text-brand-600" />
+            <span>Official 4 Role Credentials (Click to Autofill):</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {SEED_USERS.map((u) => (
               <button
                 key={u.id}
                 type="button"
-                onClick={() => handleQuickLogin(u)}
-                className="text-left p-2.5 rounded-lg border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition-colors text-xs"
+                onClick={() => handleSelectRoleAccount(u)}
+                className={`text-left p-2.5 rounded-xl border transition-all duration-150 text-xs ${
+                  email === u.email
+                    ? 'border-brand-500 bg-brand-50/70 shadow-xs ring-1 ring-brand-500'
+                    : 'border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-slate-50'
+                }`}
               >
-                <div className="font-semibold text-slate-800 truncate">{u.name}</div>
-                <div className="text-[10px] text-brand-600 font-mono font-medium truncate">
-                  {u.role.replace(/_/g, ' ')}
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800">{u.name}</span>
+                  <span
+                    className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded ${
+                      u.role === 'SUPER_ADMIN'
+                        ? 'bg-purple-100 text-purple-700'
+                        : u.role === 'ADMIN'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : u.role === 'SALES_EMPLOYEE'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {u.role.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 font-mono mt-1">
+                  ID: <span className="text-slate-800 font-semibold">{u.email}</span>
+                </div>
+                <div className="text-[11px] text-slate-600 font-mono mt-0.5">
+                  PWD: <span className="text-brand-700 font-semibold">{u.password}</span>
                 </div>
               </button>
             ))}

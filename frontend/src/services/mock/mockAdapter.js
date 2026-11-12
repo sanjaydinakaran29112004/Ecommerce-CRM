@@ -15,18 +15,28 @@ export async function handleMockRequest(config) {
   // Add realistic network round-trip latency
   await sleep(250 + Math.random() * 150);
 
-  // AUTH: LOGIN
+  // AUTH: LOGIN (Validates both Email AND Password strictly!)
   if (cleanUrl === '/auth/login' && method.toLowerCase() === 'post') {
     const payload = typeof data === 'string' ? JSON.parse(data) : data;
     const users = mockDb.get('users');
-    const user = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase());
+    const user = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase().trim());
 
     if (!user) {
       return {
         status: 401,
         data: {
           success: false,
-          message: 'Invalid credentials. User not found with this email.',
+          message: 'Invalid email: No user account found with this corporate email address.',
+        }
+      };
+    }
+
+    if (user.password && payload.password !== user.password) {
+      return {
+        status: 401,
+        data: {
+          success: false,
+          message: `Invalid password for ${user.name} (${user.role.replace(/_/g, ' ')}). Please check your credentials.`,
         }
       };
     }
@@ -35,7 +45,7 @@ export async function handleMockRequest(config) {
       status: 200,
       data: {
         success: true,
-        message: `Welcome back, ${user.name} (${user.role.replace(/_/g, ' ')})`,
+        message: `Login successful as ${user.name}`,
         data: {
           user,
           accessToken: user.token || `jwt_${user.id}_token`,
@@ -50,7 +60,7 @@ export async function handleMockRequest(config) {
     const payload = typeof data === 'string' ? JSON.parse(data) : data;
     const users = mockDb.get('users');
 
-    const existingUser = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase());
+    const existingUser = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase().trim());
     if (existingUser) {
       return {
         status: 400,
@@ -65,7 +75,8 @@ export async function handleMockRequest(config) {
     const newUser = {
       id: `usr_${Date.now()}`,
       name: payload.name,
-      email: payload.email.toLowerCase(),
+      email: payload.email.toLowerCase().trim(),
+      password: payload.password,
       role: assignedRole,
       department: payload.department || (assignedRole.includes('SALES') ? 'Sales & BD' : assignedRole.includes('SUPPORT') ? 'Customer Support' : 'Management'),
       avatar: `https://images.unsplash.com/photo-${1534528741775 + Math.floor(Math.random() * 1000)}?w=150`,
