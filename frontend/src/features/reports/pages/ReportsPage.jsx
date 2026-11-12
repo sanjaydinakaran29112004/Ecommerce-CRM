@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { exportToCsv } from '@/utils/exportCsv';
@@ -9,10 +9,6 @@ import {
   BarChart2,
   Users,
   LifeBuoy,
-  Calendar,
-  CheckCircle2,
-  DollarSign,
-  Package,
 } from 'lucide-react';
 
 const SALES_REPORT_DATA = [
@@ -33,10 +29,10 @@ const INVENTORY_REPORT_DATA = [
 ];
 
 const CUSTOMER_COHORT_DATA = [
-  { cohort: 'VIP High Value (&gt;₹1.5L)', count: 18, avgSpend: 245000, repeatRate: '92.4%', churnRisk: 'Very Low' },
+  { cohort: 'VIP High Value (>₹1.5L)', count: 18, avgSpend: 245000, repeatRate: '92.4%', churnRisk: 'Very Low' },
   { cohort: 'Frequent Repeat Buyers (3-10 orders)', count: 64, avgSpend: 68400, repeatRate: '78.1%', churnRisk: 'Low' },
   { cohort: 'First-Time Direct Buyers', count: 142, avgSpend: 14200, repeatRate: '31.2%', churnRisk: 'Medium' },
-  { cohort: 'Inactive / Dormant (&gt;90 days)', count: 35, avgSpend: 4200, repeatRate: '4.8%', churnRisk: 'High Churn' },
+  { cohort: 'Inactive / Dormant (>90 days)', count: 35, avgSpend: 4200, repeatRate: '4.8%', churnRisk: 'High Churn' },
 ];
 
 const SUPPORT_SLA_DATA = [
@@ -243,7 +239,7 @@ export function ReportsPage() {
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {CUSTOMER_COHORT_DATA.map((row, i) => (
                   <tr key={i} className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-semibold text-slate-900" dangerouslySetInnerHTML={{ __html: row.cohort }} />
+                    <td className="py-3 px-4 font-semibold text-slate-900">{row.cohort}</td>
                     <td className="py-3 px-4 text-center font-bold text-slate-800">{row.count} customers</td>
                     <td className="py-3 px-4 text-right font-bold text-brand-600">{formatCurrency(row.avgSpend)}</td>
                     <td className="py-3 px-4 text-center font-bold text-emerald-600">{row.repeatRate}</td>

@@ -9,7 +9,7 @@ import { RecentOrdersTable } from '../components/RecentOrdersTable';
 import { Button } from '@/components/ui/Button';
 import { Download, ShieldCheck, Briefcase, Headphones } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
+import { ROLES } from '@/config/permissions.config';
 import { exportToCsv } from '@/utils/exportCsv';
 
 export function DashboardPage() {

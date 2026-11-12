@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
+import { ROLES } from '@/config/permissions.config';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import { Lock, Mail, User, Shield, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Lock, Mail, User, Shield, AlertCircle, ArrowRight } from 'lucide-react';
 
 export function SignupPage() {
   const navigate = useNavigate();

@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { ShoppingBag, Printer, Plus, Download, Search, CheckCircle2, Truck, CreditCard, ChevronRight, User } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User } from 'lucide-react';
 
 const ORDER_STATUSES = ['PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
 

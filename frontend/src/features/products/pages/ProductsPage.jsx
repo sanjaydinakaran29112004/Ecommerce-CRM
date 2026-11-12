@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, Package, AlertTriangle, ArrowUpDown, SlidersHorizontal, Image } from 'lucide-react';
+import { Plus, AlertTriangle, Image } from 'lucide-react';
 
 export function ProductsPage() {
   const queryClient = useQueryClient();

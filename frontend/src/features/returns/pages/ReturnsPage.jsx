@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { mockDb } from '@/services/mock/mockDb';
-import { RotateCcw, AlertTriangle, CheckCircle, ShieldCheck, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const INITIAL_RETURNS = [
   {

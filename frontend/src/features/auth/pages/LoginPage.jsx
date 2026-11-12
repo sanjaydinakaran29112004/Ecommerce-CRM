@@ -5,7 +5,7 @@ import { SEED_USERS } from '@/services/mock/data/seedUsers';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import { Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, UserPlus, KeyRound, Copy } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, UserPlus, KeyRound } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();

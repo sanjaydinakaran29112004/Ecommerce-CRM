@@ -3,7 +3,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { storage } from '@/utils/storage';
-import { Settings, ShieldCheck, History, CheckCircle2, Save } from 'lucide-react';
+import { CheckCircle2, Save } from 'lucide-react';
 
 const INITIAL_AUDIT_LOGS = [
   {

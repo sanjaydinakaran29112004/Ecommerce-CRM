@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, Megaphone, Send, Users, Mail, MessageSquare } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 const INITIAL_CAMPAIGNS = [
   {

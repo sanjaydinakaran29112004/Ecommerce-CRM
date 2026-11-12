@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLE_MODULES, ROLES, ROLE_LABELS } from '@/config/permissions.config';
+import { ROLE_MODULES, ROLES } from '@/config/permissions.config';
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +17,6 @@ import {
   UserCog,
   Settings,
   ShieldCheck,
-  Shield,
 } from 'lucide-react';
 
 const NAV_ITEMS = [

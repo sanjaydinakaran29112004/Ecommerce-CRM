@@ -1,7 +1,7 @@
 import React from 'react';
 import { MetricCard } from '@/components/data-display/MetricCard';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { IndianRupee, ShoppingCart, Users, TrendingUp, Target } from 'lucide-react';
+import { IndianRupee, ShoppingCart, Users, TrendingUp } from 'lucide-react';
 
 export function KpiOverview({ metrics, isLoading }) {
   if (isLoading) {

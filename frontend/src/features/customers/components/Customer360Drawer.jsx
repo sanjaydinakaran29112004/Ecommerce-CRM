@@ -3,8 +3,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { StatusChip } from '@/components/data-display/StatusChip';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
-import { Button } from '@/components/ui/Button';
-import { Mail, Phone, MapPin, Calendar, ShoppingBag, LifeBuoy, Clock, ArrowUpRight } from 'lucide-react';
+import { Mail, Phone, MapPin, ShoppingBag, LifeBuoy, Clock } from 'lucide-react';
 
 export function Customer360Drawer({ customer, isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');

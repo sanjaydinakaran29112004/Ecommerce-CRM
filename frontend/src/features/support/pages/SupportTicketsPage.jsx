@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/utils/formatDate';
 import { mockDb } from '@/services/mock/mockDb';
-import { MessageSquare, Send, ShieldAlert, CheckCircle, Clock, Plus, User, Mail, Tag } from 'lucide-react';
+import { MessageSquare, Send, Plus, User, Mail } from 'lucide-react';
 
 export function SupportTicketsPage() {
   const queryClient = useQueryClient();

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, CheckSquare, Clock, AlertCircle, User, CheckCircle2 } from 'lucide-react';
+import { Plus, Clock, CheckCircle2 } from 'lucide-react';
 
 const INITIAL_TASKS = [
   {

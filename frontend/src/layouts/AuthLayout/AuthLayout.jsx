@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { ShieldCheck, BarChart3, Users, Zap } from 'lucide-react';
+import { ShieldCheck, BarChart3, Users } from 'lucide-react';
 
 export function AuthLayout() {
   return (

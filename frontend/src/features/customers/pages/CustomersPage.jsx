@@ -11,7 +11,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, Download, Search, Eye, Filter } from 'lucide-react';
+import { Plus, Download, Search, Eye } from 'lucide-react';
 
 export function CustomersPage() {
   const queryClient = useQueryClient();

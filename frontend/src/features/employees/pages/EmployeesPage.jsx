@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { mockDb } from '@/services/mock/mockDb';
 import { SEED_USERS } from '@/services/mock/data/seedUsers';
 import { ROLES, ROLE_LABELS, ROLE_PERMISSIONS } from '@/config/permissions.config';
-import { Plus, Shield, Mail, User, CheckCircle2 } from 'lucide-react';
+import { Plus, Mail, User, CheckCircle2 } from 'lucide-react';
 
 export function EmployeesPage() {
   const [employees, setEmployees] = useState(() => {

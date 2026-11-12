@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, LayoutGrid, List, Phone, Calendar, ArrowRight, User, Building2, Mail } from 'lucide-react';
+import { Plus, LayoutGrid, List, Phone, ArrowRight, User, Building2, Mail } from 'lucide-react';
 
 const STAGES = [
   { id: 'NEW', title: 'New Leads', color: 'border-slate-300' },
