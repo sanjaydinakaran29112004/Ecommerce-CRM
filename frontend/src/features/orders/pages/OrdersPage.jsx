@@ -12,7 +12,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode, CheckCheck } from 'lucide-react';
 import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
 import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
 
@@ -787,6 +787,43 @@ export function OrdersPage() {
                 <p className="text-slate-600 mt-1 leading-relaxed">{selectedOrder.shippingAddress}</p>
               </div>
             </div>
+
+            {/* Merchant Bank Account Settlement Card (Shows when paid) */}
+            {selectedOrder.paymentStatus === 'PAID' && (
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <CheckCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Funds Received in Merchant Account</span>
+                  </span>
+                  <span className="bg-emerald-600 text-white font-bold text-[10px] px-2 py-0.5 rounded">
+                    SETTLED
+                  </span>
+                </div>
+                <div className="text-[11px] text-emerald-800 grid grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60">
+                  <div>
+                    <span className="text-emerald-700/80 block">Merchant Beneficiary:</span>
+                    <strong>EntryKode Technologies Pvt Ltd</strong>
+                  </div>
+                  <div>
+                    <span className="text-emerald-700/80 block">Settlement Bank:</span>
+                    <strong>ICICI Current A/C •••• 8842</strong>
+                  </div>
+                  {selectedOrder.paymentDetails?.paymentId && (
+                    <div>
+                      <span className="text-emerald-700/80 block">Payment ID:</span>
+                      <code className="font-mono font-bold text-emerald-900">{selectedOrder.paymentDetails.paymentId}</code>
+                    </div>
+                  )}
+                  {selectedOrder.paymentDetails?.utrNumber && (
+                    <div>
+                      <span className="text-emerald-700/80 block">Bank UTR / Reference:</span>
+                      <code className="font-mono text-emerald-900">{selectedOrder.paymentDetails.utrNumber}</code>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Line Items Table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
