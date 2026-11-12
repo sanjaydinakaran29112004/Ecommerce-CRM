@@ -1,0 +1,151 @@
+const { ROLES } = require('./roles.constant');
+
+/**
+ * Granular System Permissions
+ */
+const PERMISSIONS = Object.freeze({
+  // Users & Staff
+  USERS_READ: 'users:read',
+  USERS_CREATE: 'users:create',
+  USERS_UPDATE: 'users:update',
+  USERS_DELETE: 'users:delete',
+
+  // Customer 360
+  CUSTOMERS_READ: 'customers:read',
+  CUSTOMERS_CREATE: 'customers:create',
+  CUSTOMERS_UPDATE: 'customers:update',
+  CUSTOMERS_ARCHIVE: 'customers:archive',
+  CUSTOMERS_EXPORT: 'customers:export',
+  CUSTOMERS_IMPORT: 'customers:import',
+
+  // Sensitive PII
+  PII_VIEW: 'pii:view',
+
+  // Leads
+  LEADS_READ: 'leads:read',
+  LEADS_CREATE: 'leads:create',
+  LEADS_UPDATE: 'leads:update',
+  LEADS_CONVERT: 'leads:convert',
+
+  // Products
+  PRODUCTS_READ: 'products:read',
+  PRODUCTS_CREATE: 'products:create',
+  PRODUCTS_UPDATE: 'products:update',
+  PRODUCTS_DELETE: 'products:delete',
+
+  // Inventory
+  INVENTORY_READ: 'inventory:read',
+  INVENTORY_ADJUST: 'inventory:adjust',
+
+  // Orders
+  ORDERS_READ: 'orders:read',
+  ORDERS_CREATE: 'orders:create',
+  ORDERS_UPDATE_STATUS: 'orders:update_status',
+  ORDERS_CANCEL: 'orders:cancel',
+
+  // Payments & Refunds
+  PAYMENTS_READ: 'payments:read',
+  REFUNDS_APPROVE: 'refunds:approve',
+
+  // Support
+  TICKETS_READ: 'tickets:read',
+  TICKETS_CREATE: 'tickets:create',
+  TICKETS_ASSIGN: 'tickets:assign',
+  TICKETS_REPLY: 'tickets:reply',
+  TICKETS_CLOSE: 'tickets:close',
+
+  // Campaigns
+  CAMPAIGNS_READ: 'campaigns:read',
+  CAMPAIGNS_CREATE: 'campaigns:create',
+  CAMPAIGNS_SEND: 'campaigns:send',
+
+  // Tasks
+  TASKS_READ: 'tasks:read',
+  TASKS_CREATE: 'tasks:create',
+  TASKS_UPDATE: 'tasks:update',
+
+  // Reports
+  REPORTS_READ: 'reports:read',
+  REPORTS_EXPORT: 'reports:export',
+
+  // Settings & Audit
+  SETTINGS_READ: 'settings:read',
+  SETTINGS_UPDATE: 'settings:update',
+  AUDIT_READ: 'audit:read'
+});
+
+/**
+ * Default Permissions Matrix by Role
+ */
+const ROLE_DEFAULT_PERMISSIONS = {
+  [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
+  [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(
+    (p) => p !== PERMISSIONS.SETTINGS_UPDATE && p !== PERMISSIONS.USERS_DELETE
+  ),
+  [ROLES.SALES_MANAGER]: [
+    PERMISSIONS.CUSTOMERS_READ,
+    PERMISSIONS.CUSTOMERS_CREATE,
+    PERMISSIONS.CUSTOMERS_UPDATE,
+    PERMISSIONS.LEADS_READ,
+    PERMISSIONS.LEADS_CREATE,
+    PERMISSIONS.LEADS_UPDATE,
+    PERMISSIONS.LEADS_CONVERT,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.ORDERS_CREATE,
+    PERMISSIONS.TASKS_READ,
+    PERMISSIONS.TASKS_CREATE,
+    PERMISSIONS.TASKS_UPDATE,
+    PERMISSIONS.REPORTS_READ
+  ],
+  [ROLES.SALES_EXECUTIVE]: [
+    PERMISSIONS.CUSTOMERS_READ,
+    PERMISSIONS.CUSTOMERS_CREATE,
+    PERMISSIONS.LEADS_READ,
+    PERMISSIONS.LEADS_CREATE,
+    PERMISSIONS.LEADS_UPDATE,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.ORDERS_CREATE,
+    PERMISSIONS.TASKS_READ,
+    PERMISSIONS.TASKS_UPDATE
+  ],
+  [ROLES.SUPPORT_MANAGER]: [
+    PERMISSIONS.CUSTOMERS_READ,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.TICKETS_READ,
+    PERMISSIONS.TICKETS_CREATE,
+    PERMISSIONS.TICKETS_ASSIGN,
+    PERMISSIONS.TICKETS_REPLY,
+    PERMISSIONS.TICKETS_CLOSE,
+    PERMISSIONS.REFUNDS_APPROVE,
+    PERMISSIONS.REPORTS_READ
+  ],
+  [ROLES.SUPPORT_EXECUTIVE]: [
+    PERMISSIONS.CUSTOMERS_READ,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.TICKETS_READ,
+    PERMISSIONS.TICKETS_REPLY
+  ],
+  [ROLES.INVENTORY_MANAGER]: [
+    PERMISSIONS.PRODUCTS_READ,
+    PERMISSIONS.PRODUCTS_CREATE,
+    PERMISSIONS.PRODUCTS_UPDATE,
+    PERMISSIONS.INVENTORY_READ,
+    PERMISSIONS.INVENTORY_ADJUST,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.REPORTS_READ
+  ],
+  [ROLES.ANALYST]: [
+    PERMISSIONS.CUSTOMERS_READ,
+    PERMISSIONS.ORDERS_READ,
+    PERMISSIONS.PRODUCTS_READ,
+    PERMISSIONS.INVENTORY_READ,
+    PERMISSIONS.REPORTS_READ,
+    PERMISSIONS.REPORTS_EXPORT
+  ]
+};
+
+module.exports = {
+  PERMISSIONS,
+  ROLE_DEFAULT_PERMISSIONS
+};
+

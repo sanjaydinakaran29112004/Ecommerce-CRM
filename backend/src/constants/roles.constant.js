@@ -1,0 +1,21 @@
+/**
+ * Enterprise User Roles Definition
+ */
+const ROLES = Object.freeze({
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN',
+  SALES_MANAGER: 'SALES_MANAGER',
+  SALES_EXECUTIVE: 'SALES_EXECUTIVE',
+  SUPPORT_MANAGER: 'SUPPORT_MANAGER',
+  SUPPORT_EXECUTIVE: 'SUPPORT_EXECUTIVE',
+  INVENTORY_MANAGER: 'INVENTORY_MANAGER',
+  ANALYST: 'ANALYST'
+});
+
+const ALL_ROLES = Object.values(ROLES);
+
+module.exports = {
+  ROLES,
+  ALL_ROLES
+};
+
