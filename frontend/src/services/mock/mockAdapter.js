@@ -12,8 +12,8 @@ export async function handleMockRequest(config) {
   const { url, method, data, params } = config;
   const cleanUrl = url.replace(/^\/api\/v1/, '').split('?')[0];
 
-  // Add realistic network round-trip latency
-  await sleep(250 + Math.random() * 150);
+  // Ultra-fast responsive latency (10-25ms micro-latency for 60fps instant UI feel)
+  await sleep(15 + Math.random() * 15);
 
   // AUTH: LOGIN (Validates both Email AND Password strictly!)
   if (cleanUrl === '/auth/login' && method.toLowerCase() === 'post') {

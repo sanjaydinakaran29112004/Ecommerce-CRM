@@ -70,6 +70,7 @@ export function SalesTrendChart({ data = [] }) {
                 strokeWidth={2.5}
                 fillOpacity={1}
                 fill="url(#revenueGradient)"
+                animationDuration={300}
               />
             </AreaChart>
           </ResponsiveContainer>

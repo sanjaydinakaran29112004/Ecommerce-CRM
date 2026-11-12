@@ -4,7 +4,8 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { IndianRupee, ShoppingCart, Users, TrendingUp } from 'lucide-react';
 
 export function KpiOverview({ metrics, isLoading }) {
-  if (isLoading) {
+  // Only show skeleton on initial mount when no data is loaded yet
+  if (isLoading && !metrics) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {Array.from({ length: 4 }).map((_, i) => (

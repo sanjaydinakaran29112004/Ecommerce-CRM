@@ -41,6 +41,7 @@ export function OrderStatusChart({ data = [] }) {
                 outerRadius={85}
                 paddingAngle={4}
                 dataKey="value"
+                isAnimationActive={false}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
