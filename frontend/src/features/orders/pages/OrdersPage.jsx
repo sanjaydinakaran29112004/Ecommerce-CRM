@@ -12,7 +12,9 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles } from 'lucide-react';
+import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
+import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
 
 const ORDER_STATUSES = ['PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
 
@@ -23,6 +25,11 @@ export function OrdersPage() {
   const [newStatus, setNewStatus] = useState('PROCESSING');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Payment Gateway & Storefront Simulation States
+  const [isGatewayOpen, setIsGatewayOpen] = useState(false);
+  const [gatewayOrder, setGatewayOrder] = useState(null);
+  const [isStorefrontOpen, setIsStorefrontOpen] = useState(false);
 
   // Create Manual Order Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -36,6 +43,7 @@ export function OrdersPage() {
     unitPrice: 14999,
     paymentMethod: 'UPI (Razorpay)',
     shippingAddress: 'Flat 3A, Metro Residency, Mount Road, Chennai 600002',
+    triggerGateway: true,
   });
 
   const { data: orders = [], isLoading } = useQuery({
@@ -58,6 +66,70 @@ export function OrdersPage() {
       }
     },
   });
+
+  // Successful Payment Processing Handler (Real-Time CRM Sync)
+  const handlePaymentSuccess = (result) => {
+    const existingOrders = mockDb.get('orders');
+    const updatedOrders = existingOrders.map((o) => {
+      if (o.orderNumber === result.orderNumber || o.id === gatewayOrder?.id) {
+        return {
+          ...o,
+          paymentStatus: 'PAID',
+          orderStatus: 'CONFIRMED',
+          paymentMethod: result.method,
+          paymentDetails: result,
+        };
+      }
+      return o;
+    });
+    mockDb.set('orders', updatedOrders);
+
+    // Auto-decrement inventory for purchased product
+    const existingProducts = mockDb.get('products');
+    if (existingProducts && existingProducts.length > 0) {
+      const updatedProducts = existingProducts.map((p) => {
+        if (gatewayOrder?.items?.some((item) => item.sku === p.sku)) {
+          return { ...p, stock: Math.max(0, (p.stock || 10) - (gatewayOrder.items[0]?.quantity || 1)) };
+        }
+        return p;
+      });
+      mockDb.set('products', updatedProducts);
+    }
+
+    // Update Customer Lifetime Value (Total Spent & Orders Count)
+    const existingCustomers = mockDb.get('customers');
+    if (existingCustomers && existingCustomers.length > 0) {
+      const updatedCustomers = existingCustomers.map((c) => {
+        if (
+          c.email?.toLowerCase() === gatewayOrder?.customer?.email?.toLowerCase() ||
+          c.firstName?.toLowerCase().includes(gatewayOrder?.customer?.name?.toLowerCase() || '')
+        ) {
+          return {
+            ...c,
+            totalSpent: (c.totalSpent || 0) + Number(result.amount),
+            ordersCount: (c.ordersCount || 0) + 1,
+          };
+        }
+        return c;
+      });
+      mockDb.set('customers', updatedCustomers);
+    }
+
+    // Refresh CRM Queries
+    queryClient.invalidateQueries(['orders-list']);
+    queryClient.invalidateQueries(['products-list']);
+    queryClient.invalidateQueries(['customers-list']);
+    queryClient.invalidateQueries(['dashboard-metrics']);
+
+    if (selectedOrder && (selectedOrder.id === gatewayOrder?.id || selectedOrder.orderNumber === result.orderNumber)) {
+      setSelectedOrder((prev) => ({
+        ...prev,
+        paymentStatus: 'PAID',
+        orderStatus: 'CONFIRMED',
+        paymentDetails: result,
+      }));
+    }
+  };
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData) => {
@@ -92,8 +164,8 @@ export function OrdersPage() {
           shipping: 0,
           total,
         },
-        orderStatus: 'PLACED',
-        paymentStatus: 'PAID',
+        orderStatus: orderData.triggerGateway ? 'PLACED' : 'CONFIRMED',
+        paymentStatus: orderData.triggerGateway ? 'PENDING' : 'PAID',
         paymentMethod: orderData.paymentMethod,
         shippingAddress: orderData.shippingAddress,
         placedAt: new Date().toISOString(),
@@ -101,9 +173,9 @@ export function OrdersPage() {
       };
 
       mockDb.set('orders', [orderEntry, ...existing]);
-      return orderEntry;
+      return { orderEntry, triggerGateway: orderData.triggerGateway };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries(['orders-list']);
       setIsCreateModalOpen(false);
       setManualOrder({
@@ -116,9 +188,33 @@ export function OrdersPage() {
         unitPrice: 14999,
         paymentMethod: 'UPI (Razorpay)',
         shippingAddress: 'Flat 3A, Metro Residency, Mount Road, Chennai 600002',
+        triggerGateway: true,
       });
+
+      // If user chose instant online checkout, launch Razorpay Gateway immediately!
+      if (data.triggerGateway) {
+        setGatewayOrder(data.orderEntry);
+        setIsGatewayOpen(true);
+      }
     },
   });
+
+  // Handler for Storefront Online Purchase simulation
+  const handleStorefrontOrder = (preparedOrder) => {
+    const existing = mockDb.get('orders');
+    const orderNumber = `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`;
+    const fullOrder = {
+      ...preparedOrder,
+      id: `ord_${Date.now()}`,
+      orderNumber,
+    };
+    mockDb.set('orders', [fullOrder, ...existing]);
+    queryClient.invalidateQueries(['orders-list']);
+
+    // Directly open Razorpay Gateway for this Storefront purchase
+    setGatewayOrder(fullOrder);
+    setIsGatewayOpen(true);
+  };
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
@@ -192,9 +288,41 @@ export function OrdersPage() {
       accessor: 'paymentStatus',
       render: (val, row) => (
         <div>
-          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            {val}
-          </span>
+          {val === 'PAID' ? (
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                PAID
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGatewayOrder(row);
+                  setIsGatewayOpen(true);
+                }}
+                title="View Razorpay Receipt"
+                className="text-[10px] text-brand-600 hover:text-brand-800 font-semibold underline cursor-pointer"
+              >
+                Receipt
+              </button>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGatewayOrder(row);
+                  setIsGatewayOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
+              >
+                <CreditCard className="w-2.5 h-2.5" />
+                <span>Pay Now</span>
+              </button>
+              <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pending</div>
+            </div>
+          )}
           <div className="text-[10px] text-slate-400 mt-0.5">{row.paymentMethod}</div>
         </div>
       ),
@@ -249,7 +377,17 @@ export function OrdersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsStorefrontOpen(true)}
+            leftIcon={<ShoppingBag className="w-3.5 h-3.5 text-brand-600" />}
+            className="border-brand-200 text-brand-700 bg-brand-50/50 hover:bg-brand-50"
+          >
+            Storefront Quick Buy
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -398,12 +536,38 @@ export function OrdersPage() {
             required
           />
 
+          {/* Interactive Payment Gateway Option */}
+          <div className="bg-brand-50/70 p-3 rounded-xl border border-brand-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand-600" />
+              <div>
+                <span className="text-xs font-bold text-brand-900 block">Payment Gateway Checkout</span>
+                <span className="text-[10px] text-brand-700">Open live Razorpay popup to simulate real customer payment</span>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={manualOrder.triggerGateway}
+                onChange={(e) => setManualOrder({ ...manualOrder, triggerGateway: e.target.checked })}
+                className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
+              />
+              <span>Launch Razorpay Gateway</span>
+            </label>
+          </div>
+
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm" isLoading={createOrderMutation.isLoading}>
-              Confirm & Create Order
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              isLoading={createOrderMutation.isLoading}
+              leftIcon={<CreditCard className="w-3.5 h-3.5" />}
+            >
+              {manualOrder.triggerGateway ? 'Proceed to Razorpay Payment' : 'Confirm Order (Offline Paid)'}
             </Button>
           </div>
         </form>
@@ -433,14 +597,41 @@ export function OrdersPage() {
                   {selectedOrder.paymentStatus} via {selectedOrder.paymentMethod}
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Printer className="w-3.5 h-3.5" />}
-                onClick={() => window.print()}
-              >
-                Print Invoice
-              </Button>
+              <div className="flex items-center gap-2">
+                {selectedOrder.paymentStatus === 'PENDING' ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<CreditCard className="w-3.5 h-3.5" />}
+                    onClick={() => {
+                      setGatewayOrder(selectedOrder);
+                      setIsGatewayOpen(true);
+                    }}
+                  >
+                    Pay via Razorpay
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Sparkles className="w-3.5 h-3.5 text-emerald-600" />}
+                    onClick={() => {
+                      setGatewayOrder(selectedOrder);
+                      setIsGatewayOpen(true);
+                    }}
+                  >
+                    Gateway Receipt
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Printer className="w-3.5 h-3.5" />}
+                  onClick={() => window.print()}
+                >
+                  Print Invoice
+                </Button>
+              </div>
             </div>
 
             {/* Customer & Shipping */}
@@ -547,6 +738,21 @@ export function OrdersPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Razorpay Enterprise Payment Gateway Modal */}
+      <RazorpayGatewayModal
+        isOpen={isGatewayOpen}
+        onClose={() => setIsGatewayOpen(false)}
+        orderData={gatewayOrder}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
+      {/* Customer Storefront Online Purchase Simulator Modal */}
+      <StorefrontPurchaseModal
+        isOpen={isStorefrontOpen}
+        onClose={() => setIsStorefrontOpen(false)}
+        onOrderPlaced={handleStorefrontOrder}
+      />
     </div>
   );
 }
