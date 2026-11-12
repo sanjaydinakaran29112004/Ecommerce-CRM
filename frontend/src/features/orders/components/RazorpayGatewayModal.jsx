@@ -210,41 +210,59 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    {/* Visual QR Code Generator Simulation */}
-                    <div className="w-28 h-28 bg-white p-2 rounded-lg border border-slate-200 shadow-xs flex items-center justify-center shrink-0 relative">
-                      <svg viewBox="0 0 100 100" className="w-full h-full text-slate-800 fill-current">
-                        {/* Realistic Mock QR Pattern */}
-                        <rect x="0" y="0" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="6" />
-                        <rect x="8" y="8" width="14" height="14" />
-                        <rect x="70" y="0" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="6" />
-                        <rect x="78" y="8" width="14" height="14" />
-                        <rect x="0" y="70" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="6" />
-                        <rect x="8" y="78" width="14" height="14" />
-                        <rect x="40" y="10" width="10" height="10" />
-                        <rect x="15" y="45" width="10" height="10" />
-                        <rect x="45" y="45" width="20" height="20" fill="#4f46e5" />
-                        <rect x="75" y="45" width="10" height="10" />
-                        <rect x="40" y="75" width="10" height="10" />
-                        <rect x="75" y="75" width="15" height="15" />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <span className="bg-white px-1 py-0.5 rounded text-[9px] font-bold text-brand-600 shadow-xs border border-brand-200">
-                          ₹
-                        </span>
-                      </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    {/* Real Dynamic High-Resolution QR Code */}
+                    <div className="w-32 h-32 bg-white p-2 rounded-xl border-2 border-indigo-200 shadow-xs flex items-center justify-center shrink-0 relative overflow-hidden group">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(
+                          `upi://pay?pa=entrykode@icici&pn=EntryKodeTechnologies&am=${totalAmount}&tr=${orderNumber}&cu=INR`
+                        )}`}
+                        alt="Scan UPI QR Code"
+                        className="w-full h-full object-contain rounded"
+                        loading="eager"
+                      />
+                      {/* Laser Scan Animation Line */}
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-brand-500 to-transparent shadow-[0_0_8px_rgba(99,102,241,0.8)] animate-pulse" />
                     </div>
 
-                    <div className="space-y-1.5 text-xs">
-                      <p className="font-semibold text-slate-800">Scan with GPay, PhonePe, Paytm, BHIM</p>
-                      <p className="text-[11px] text-slate-500">Point your camera to complete the instantaneous transaction</p>
-                      <div className="flex items-center gap-1.5 pt-1">
-                        <span className="text-[10px] font-bold text-slate-400">Merchant UPI:</span>
-                        <code className="text-[10px] bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-slate-700">
+                    <div className="space-y-2 text-xs flex-1">
+                      <div className="flex flex-wrap gap-1">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-200">
+                          Google Pay
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-bold text-[10px] border border-purple-200">
+                          PhonePe
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-bold text-[10px] border border-sky-200">
+                          Paytm
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">
+                          BHIM UPI
+                        </span>
+                      </div>
+
+                      <p className="font-semibold text-slate-800 leading-snug">
+                        Point your camera to complete instant payment of <strong className="text-brand-600 font-bold">{formatCurrency(totalAmount)}</strong>
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <span className="text-[10px] font-bold text-slate-400">Merchant UPI ID:</span>
+                        <code className="text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200 font-mono font-bold text-slate-800">
                           entrykode@icici
                         </code>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSimulatePayment}
+                      className="w-full py-2 px-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-98"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Simulate Mobile Scan & Approve ({formatCurrency(totalAmount)})</span>
+                    </button>
                   </div>
 
                   <div>

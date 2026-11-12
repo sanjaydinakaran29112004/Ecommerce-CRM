@@ -119,8 +119,9 @@ export async function handleMockRequest(config) {
     const customers = mockDb.get('customers');
     const leads = mockDb.get('leads');
 
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.pricing?.total || 0), 0);
-    const avgOrderValue = orders.length ? Math.round(totalRevenue / orders.length) : 0;
+    const paidOrders = orders.filter((o) => o.paymentStatus === 'PAID' || o.orderStatus === 'DELIVERED');
+    const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.pricing?.total || 0), 0);
+    const avgOrderValue = paidOrders.length ? Math.round(totalRevenue / paidOrders.length) : orders.length ? Math.round(totalRevenue / orders.length) : 0;
 
     return {
       status: 200,
@@ -128,9 +129,9 @@ export async function handleMockRequest(config) {
         success: true,
         data: {
           revenue: { value: totalRevenue, delta: '+14.2%', deltaType: 'increase' },
-          orders: { value: orders.length, delta: '+8.1%', deltaType: 'increase' },
-          customers: { value: customers.length, delta: '+12.5%', deltaType: 'increase' },
-          averageOrderValue: { value: avgOrderValue, delta: '+3.4%', deltaType: 'increase' },
+          orders: { value: orders.length, delta: `+${orders.length} active`, deltaType: 'increase' },
+          customers: { value: Math.max(customers.length, 5), delta: '+12.5%', deltaType: 'increase' },
+          averageOrderValue: { value: avgOrderValue || 18585, delta: '+3.4%', deltaType: 'increase' },
           activeLeads: { value: leads.length, delta: '+5', deltaType: 'increase' },
         }
       }
@@ -138,6 +139,9 @@ export async function handleMockRequest(config) {
   }
 
   if (cleanUrl === '/dashboard/sales-trend') {
+    const orders = mockDb.get('orders');
+    const marchTotal = orders.reduce((sum, o) => sum + (o.pricing?.total || 0), 0);
+
     return {
       status: 200,
       data: {
@@ -148,22 +152,28 @@ export async function handleMockRequest(config) {
           { month: 'Dec', revenue: 512000, orders: 94 },
           { month: 'Jan', revenue: 418000, orders: 67 },
           { month: 'Feb', revenue: 462000, orders: 79 },
-          { month: 'Mar', revenue: 538000, orders: 88 },
+          { month: 'Mar', revenue: Math.max(538000, 500000 + marchTotal), orders: 88 + orders.length },
         ]
       }
     };
   }
 
   if (cleanUrl === '/dashboard/order-status') {
+    const orders = mockDb.get('orders');
+    const deliveredCount = orders.filter((o) => o.orderStatus === 'DELIVERED').length;
+    const shippedCount = orders.filter((o) => o.orderStatus === 'SHIPPED').length;
+    const processingCount = orders.filter((o) => ['PROCESSING', 'PLACED', 'CONFIRMED', 'PACKED'].includes(o.orderStatus)).length;
+    const cancelledCount = orders.filter((o) => o.orderStatus === 'CANCELLED').length;
+
     return {
       status: 200,
       data: {
         success: true,
         data: [
-          { name: 'Delivered', value: 142, color: '#10b981' },
-          { name: 'Shipped', value: 38, color: '#6366f1' },
-          { name: 'Processing', value: 24, color: '#f59e0b' },
-          { name: 'Cancelled', value: 8, color: '#ef4444' },
+          { name: 'Delivered', value: deliveredCount, color: '#10b981' },
+          { name: 'Shipped', value: shippedCount, color: '#6366f1' },
+          { name: 'Processing', value: processingCount, color: '#f59e0b' },
+          { name: 'Cancelled', value: cancelledCount, color: '#ef4444' },
         ]
       }
     };

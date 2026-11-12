@@ -59,7 +59,9 @@ export function OrdersPage() {
       return { orderId, status };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['orders-list']);
+      queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
       setEditingOrder(null);
       if (selectedOrder) {
         setSelectedOrder((prev) => ({ ...prev, orderStatus: newStatus }));
@@ -116,10 +118,12 @@ export function OrdersPage() {
     }
 
     // Refresh CRM Queries
-    queryClient.invalidateQueries(['orders-list']);
-    queryClient.invalidateQueries(['products-list']);
-    queryClient.invalidateQueries(['customers-list']);
-    queryClient.invalidateQueries(['dashboard-metrics']);
+    queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+    queryClient.invalidateQueries({ queryKey: ['products-list'] });
+    queryClient.invalidateQueries({ queryKey: ['customers-list'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
 
     if (selectedOrder && (selectedOrder.id === gatewayOrder?.id || selectedOrder.orderNumber === result.orderNumber)) {
       setSelectedOrder((prev) => ({
@@ -151,8 +155,9 @@ export function OrdersPage() {
         : o
     );
     mockDb.set('orders', updated);
-    queryClient.invalidateQueries(['orders-list']);
-    queryClient.invalidateQueries(['dashboard-metrics']);
+    queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
     if (selectedOrder && (selectedOrder.id === order.id || selectedOrder.orderNumber === order.orderNumber)) {
       setSelectedOrder((prev) => ({
         ...prev,
@@ -210,7 +215,10 @@ export function OrdersPage() {
       return { orderEntry, triggerGateway: shouldTriggerGateway };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries(['orders-list']);
+      queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
       setIsCreateModalOpen(false);
       setManualOrder({
         customerName: '',
@@ -246,7 +254,10 @@ export function OrdersPage() {
       paymentStatus: 'PENDING',
     };
     mockDb.set('orders', [fullOrder, ...existing]);
-    queryClient.invalidateQueries(['orders-list']);
+    queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
 
     // Only open Razorpay Gateway for Online Payments (not COD)
     if (!isCod) {

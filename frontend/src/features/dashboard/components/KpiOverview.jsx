@@ -18,7 +18,7 @@ export function KpiOverview({ metrics, isLoading }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <MetricCard
         title="Total Revenue"
-        value={formatCurrency(metrics?.revenue?.value || 74140)}
+        value={formatCurrency(metrics?.revenue?.value ?? 74140)}
         delta={metrics?.revenue?.delta || '+14.2%'}
         deltaType="increase"
         subtitle="vs previous 30 days"
@@ -27,25 +27,25 @@ export function KpiOverview({ metrics, isLoading }) {
 
       <MetricCard
         title="Total Orders"
-        value={metrics?.orders?.value || 4}
+        value={metrics?.orders?.value ?? 4}
         delta={metrics?.orders?.delta || '+8.1%'}
         deltaType="increase"
-        subtitle="4 active this week"
+        subtitle={`${metrics?.orders?.value ?? 4} orders in system`}
         icon={ShoppingCart}
       />
 
       <MetricCard
         title="Active Customers"
-        value={metrics?.customers?.value || 5}
+        value={metrics?.customers?.value ?? 5}
         delta={metrics?.customers?.delta || '+12.5%'}
         deltaType="increase"
-        subtitle="2 VIP Accounts"
+        subtitle="Active user profiles"
         icon={Users}
       />
 
       <MetricCard
         title="Avg Order Value"
-        value={formatCurrency(metrics?.averageOrderValue?.value || 18535)}
+        value={formatCurrency(metrics?.averageOrderValue?.value ?? 18535)}
         delta={metrics?.averageOrderValue?.delta || '+3.4%'}
         deltaType="increase"
         subtitle="Healthy basket size"
