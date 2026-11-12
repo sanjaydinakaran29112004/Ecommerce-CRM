@@ -125,3 +125,4 @@ export const SEED_CUSTOMERS = [
     createdAt: '2025-05-18T10:00:00Z',
   },
 ];
+

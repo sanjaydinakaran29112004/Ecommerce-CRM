@@ -1,4 +1,5 @@
 import { mockDb, initMockDb } from './mockDb';
+import { ROLE_PERMISSIONS, ROLES } from '@/config/permissions.config';
 
 initMockDb();
 
@@ -14,20 +15,76 @@ export async function handleMockRequest(config) {
   // Add realistic network round-trip latency
   await sleep(250 + Math.random() * 150);
 
-  // AUTH
+  // AUTH: LOGIN
   if (cleanUrl === '/auth/login' && method.toLowerCase() === 'post') {
     const payload = typeof data === 'string' ? JSON.parse(data) : data;
     const users = mockDb.get('users');
-    const user = users.find(u => u.email.toLowerCase() === payload.email.toLowerCase()) || users[0];
-    
+    const user = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase());
+
+    if (!user) {
+      return {
+        status: 401,
+        data: {
+          success: false,
+          message: 'Invalid credentials. User not found with this email.',
+        }
+      };
+    }
+
     return {
       status: 200,
       data: {
         success: true,
-        message: 'Login successful',
+        message: `Welcome back, ${user.name} (${user.role.replace(/_/g, ' ')})`,
         data: {
           user,
-          accessToken: user.token,
+          accessToken: user.token || `jwt_${user.id}_token`,
+          refreshToken: 'refresh_mock_token_abc123',
+        }
+      }
+    };
+  }
+
+  // AUTH: REGISTER (SIGNUP)
+  if (cleanUrl === '/auth/register' && method.toLowerCase() === 'post') {
+    const payload = typeof data === 'string' ? JSON.parse(data) : data;
+    const users = mockDb.get('users');
+
+    const existingUser = users.find(u => u.email.toLowerCase() === (payload.email || '').toLowerCase());
+    if (existingUser) {
+      return {
+        status: 400,
+        data: {
+          success: false,
+          message: 'An account with this email address already exists. Please sign in.',
+        }
+      };
+    }
+
+    const assignedRole = payload.role || ROLES.SALES_EMPLOYEE;
+    const newUser = {
+      id: `usr_${Date.now()}`,
+      name: payload.name,
+      email: payload.email.toLowerCase(),
+      role: assignedRole,
+      department: payload.department || (assignedRole.includes('SALES') ? 'Sales & BD' : assignedRole.includes('SUPPORT') ? 'Customer Support' : 'Management'),
+      avatar: `https://images.unsplash.com/photo-${1534528741775 + Math.floor(Math.random() * 1000)}?w=150`,
+      permissions: ROLE_PERMISSIONS[assignedRole] || ROLE_PERMISSIONS[ROLES.SALES_EMPLOYEE],
+      status: 'ACTIVE',
+      token: `jwt_${Date.now()}_token`,
+      createdAt: new Date().toISOString(),
+    };
+
+    mockDb.set('users', [newUser, ...users]);
+
+    return {
+      status: 201,
+      data: {
+        success: true,
+        message: 'Account created successfully.',
+        data: {
+          user: newUser,
+          accessToken: newUser.token,
           refreshToken: 'refresh_mock_token_abc123',
         }
       }

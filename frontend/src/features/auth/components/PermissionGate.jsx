@@ -14,3 +14,4 @@ export function PermissionGate({ permission, children, fallback = null }) {
 
   return <>{children}</>;
 }
+

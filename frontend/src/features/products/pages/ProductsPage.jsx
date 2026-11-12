@@ -214,3 +214,4 @@ export function ProductsPage() {
     </div>
   );
 }
+

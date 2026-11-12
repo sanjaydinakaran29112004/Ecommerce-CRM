@@ -39,3 +39,4 @@ export const mockDb = {
     storage.set(DB_KEYS.TICKETS, SEED_TICKETS);
   }
 };
+

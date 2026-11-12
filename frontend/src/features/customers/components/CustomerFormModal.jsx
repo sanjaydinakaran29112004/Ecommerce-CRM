@@ -148,3 +148,4 @@ export function CustomerFormModal({ isOpen, onClose, onSubmit, isLoading }) {
     </Modal>
   );
 }
+

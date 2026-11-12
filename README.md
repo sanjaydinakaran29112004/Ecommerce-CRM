@@ -54,3 +54,4 @@ d:\EntryKode\
 | **Admin** | `ishwarya@entrykode.com` | `password123` |
 | **Sales Manager** | `karthik@entrykode.com` | `password123` |
 | **Support Manager** | `priya@entrykode.com` | `password123` |
+

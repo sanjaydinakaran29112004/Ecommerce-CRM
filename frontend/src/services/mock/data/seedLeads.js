@@ -68,3 +68,4 @@ export const SEED_LEADS = [
     notes: 'Inquiry received via partner referral. Initial call pending.',
   },
 ];
+

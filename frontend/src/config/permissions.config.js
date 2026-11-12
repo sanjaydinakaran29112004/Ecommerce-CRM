@@ -1,7 +1,21 @@
 /**
- * Granular Permission Keys & Role Matrix
- * Defined based on E-Commerce CRM Architecture Section 3
+ * Exactly 4 Primary Roles & Granular Permission Matrix
+ * Tailored for E-Commerce CRM
  */
+
+export const ROLES = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN: 'ADMIN',
+  SALES_EMPLOYEE: 'SALES_EMPLOYEE',
+  SUPPORT_EMPLOYEE: 'SUPPORT_EMPLOYEE',
+};
+
+export const ROLE_LABELS = {
+  [ROLES.SUPER_ADMIN]: 'Super Admin',
+  [ROLES.ADMIN]: 'Admin',
+  [ROLES.SALES_EMPLOYEE]: 'Sales Employee',
+  [ROLES.SUPPORT_EMPLOYEE]: 'Support Employee',
+};
 
 export const PERMISSIONS = {
   // Customers
@@ -10,7 +24,6 @@ export const PERMISSIONS = {
   CUSTOMERS_UPDATE: 'customers.update',
   CUSTOMERS_DELETE: 'customers.delete',
   CUSTOMERS_EXPORT: 'customers.export',
-  CUSTOMERS_IMPORT: 'customers.import',
 
   // Leads & Sales
   LEADS_READ: 'leads.read',
@@ -38,7 +51,7 @@ export const PERMISSIONS = {
   TICKETS_REPLY: 'tickets.reply',
   TICKETS_CLOSE: 'tickets.close',
 
-  // Marketing
+  // Marketing & Campaigns
   CAMPAIGNS_READ: 'campaigns.read',
   CAMPAIGNS_MANAGE: 'campaigns.manage',
 
@@ -52,25 +65,10 @@ export const PERMISSIONS = {
   AUDIT_LOGS_VIEW: 'audit_logs.view',
 };
 
-export const ROLES = {
-  SUPER_ADMIN: 'SUPER_ADMIN',
-  ADMIN: 'ADMIN',
-  SALES_MANAGER: 'SALES_MANAGER',
-  SALES_EXECUTIVE: 'SALES_EXECUTIVE',
-  SUPPORT_MANAGER: 'SUPPORT_MANAGER',
-  SUPPORT_EXECUTIVE: 'SUPPORT_EXECUTIVE',
-  MARKETING_MANAGER: 'MARKETING_MANAGER',
-  INVENTORY_MANAGER: 'INVENTORY_MANAGER',
-  ANALYST: 'ANALYST',
-};
-
-/**
- * Default permission map for roles (used in mock & frontend fallback validation)
- */
 export const ROLE_PERMISSIONS = {
   [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
   [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.SETTINGS_MANAGE),
-  [ROLES.SALES_MANAGER]: [
+  [ROLES.SALES_EMPLOYEE]: [
     PERMISSIONS.CUSTOMERS_READ,
     PERMISSIONS.CUSTOMERS_CREATE,
     PERMISSIONS.CUSTOMERS_UPDATE,
@@ -81,51 +79,64 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.ORDERS_READ,
     PERMISSIONS.REPORTS_VIEW,
   ],
-  [ROLES.SALES_EXECUTIVE]: [
-    PERMISSIONS.CUSTOMERS_READ,
-    PERMISSIONS.LEADS_READ,
-    PERMISSIONS.LEADS_CREATE,
-    PERMISSIONS.LEADS_UPDATE,
-    PERMISSIONS.ORDERS_READ,
-  ],
-  [ROLES.SUPPORT_MANAGER]: [
+  [ROLES.SUPPORT_EMPLOYEE]: [
     PERMISSIONS.CUSTOMERS_READ,
     PERMISSIONS.ORDERS_READ,
     PERMISSIONS.TICKETS_READ,
     PERMISSIONS.TICKETS_CREATE,
-    PERMISSIONS.TICKETS_ASSIGN,
     PERMISSIONS.TICKETS_REPLY,
     PERMISSIONS.TICKETS_CLOSE,
     PERMISSIONS.REFUNDS_APPROVE,
     PERMISSIONS.REPORTS_VIEW,
   ],
-  [ROLES.SUPPORT_EXECUTIVE]: [
-    PERMISSIONS.CUSTOMERS_READ,
-    PERMISSIONS.ORDERS_READ,
-    PERMISSIONS.TICKETS_READ,
-    PERMISSIONS.TICKETS_REPLY,
+};
+
+/**
+ * Permitted Sidebar Modules per Role
+ * Directly controls what each person can see based on whether they are Admin or Employee
+ */
+export const ROLE_MODULES = {
+  [ROLES.SUPER_ADMIN]: [
+    '/dashboard',
+    '/customers',
+    '/leads',
+    '/products',
+    '/orders',
+    '/support',
+    '/campaigns',
+    '/tasks',
+    '/returns',
+    '/reports',
+    '/employees',
+    '/settings',
   ],
-  [ROLES.INVENTORY_MANAGER]: [
-    PERMISSIONS.PRODUCTS_READ,
-    PERMISSIONS.PRODUCTS_CREATE,
-    PERMISSIONS.PRODUCTS_UPDATE,
-    PERMISSIONS.INVENTORY_ADJUST,
-    PERMISSIONS.ORDERS_READ,
-    PERMISSIONS.REPORTS_VIEW,
+  [ROLES.ADMIN]: [
+    '/dashboard',
+    '/customers',
+    '/leads',
+    '/products',
+    '/orders',
+    '/support',
+    '/campaigns',
+    '/tasks',
+    '/returns',
+    '/reports',
+    '/employees',
   ],
-  [ROLES.MARKETING_MANAGER]: [
-    PERMISSIONS.CUSTOMERS_READ,
-    PERMISSIONS.CUSTOMERS_EXPORT,
-    PERMISSIONS.CAMPAIGNS_READ,
-    PERMISSIONS.CAMPAIGNS_MANAGE,
-    PERMISSIONS.REPORTS_VIEW,
+  [ROLES.SALES_EMPLOYEE]: [
+    '/dashboard',
+    '/customers',
+    '/leads',
+    '/orders',
+    '/tasks',
+    '/reports',
   ],
-  [ROLES.ANALYST]: [
-    PERMISSIONS.CUSTOMERS_READ,
-    PERMISSIONS.ORDERS_READ,
-    PERMISSIONS.PRODUCTS_READ,
-    PERMISSIONS.LEADS_READ,
-    PERMISSIONS.REPORTS_VIEW,
-    PERMISSIONS.REPORTS_EXPORT,
+  [ROLES.SUPPORT_EMPLOYEE]: [
+    '/dashboard',
+    '/customers',
+    '/orders',
+    '/support',
+    '/returns',
+    '/tasks',
   ],
 };

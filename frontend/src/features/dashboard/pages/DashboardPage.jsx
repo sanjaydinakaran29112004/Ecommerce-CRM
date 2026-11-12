@@ -7,8 +7,9 @@ import { SalesTrendChart } from '../components/SalesTrendChart';
 import { OrderStatusChart } from '../components/OrderStatusChart';
 import { RecentOrdersTable } from '../components/RecentOrdersTable';
 import { Button } from '@/components/ui/Button';
-import { Plus, Download, Calendar, Filter } from 'lucide-react';
+import { Download, ShieldCheck, Briefcase, Headphones } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -35,16 +36,56 @@ export function DashboardPage() {
     queryFn: () => axiosClient.get(ENDPOINTS.ORDERS.LIST),
   });
 
+  // Dynamic role-aware greeting & contextual subtitle
+  const getRoleContext = (role) => {
+    switch (role) {
+      case ROLES.SUPER_ADMIN:
+        return {
+          title: `Welcome back, ${user?.name || 'Sanjay'} (Super Admin) 👋`,
+          subtitle: 'Full executive command center with complete visibility across all business verticals.',
+          icon: ShieldCheck,
+        };
+      case ROLES.ADMIN:
+        return {
+          title: `Welcome back, ${user?.name || 'Ishwarya'} (Admin) 👋`,
+          subtitle: 'Operational control center for inventory, teams, orders, and revenue metrics.',
+          icon: ShieldCheck,
+        };
+      case ROLES.SALES_EMPLOYEE:
+        return {
+          title: `Welcome back, ${user?.name || 'Karthik'} (Sales Employee) 👋`,
+          subtitle: 'Here is your sales pipeline, active B2B enquiries, and customer order conversions.',
+          icon: Briefcase,
+        };
+      case ROLES.SUPPORT_EMPLOYEE:
+        return {
+          title: `Welcome back, ${user?.name || 'Priya'} (Support Employee) 👋`,
+          subtitle: 'Here is your active customer resolution queue, SLA tracking, and order fulfillment status.',
+          icon: Headphones,
+        };
+      default:
+        return {
+          title: `Welcome back, ${user?.name || 'Employee'} 👋`,
+          subtitle: 'Here is your daily operational summary.',
+          icon: ShieldCheck,
+        };
+    }
+  };
+
+  const context = getRoleContext(user?.role);
+
   return (
     <div className="space-y-6">
       {/* Top Welcome & Actions Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Welcome back, {user?.name || 'Sanjay'} 👋
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              {context.title}
+            </h1>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Here is the live performance overview of your e-commerce operations.
+            {context.subtitle}
           </p>
         </div>
 

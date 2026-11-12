@@ -22,3 +22,4 @@ export function formatRelativeTime(dateString) {
   if (!isValid(date)) return '—';
   return formatDistanceToNow(date, { addSuffix: true });
 }
+

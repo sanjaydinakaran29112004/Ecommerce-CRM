@@ -12,7 +12,19 @@ export function useAuth() {
       dispatch(loginStart());
       const response = await axiosClient.post(ENDPOINTS.AUTH.LOGIN, credentials);
       dispatch(loginSuccess(response));
-      return { success: true };
+      return { success: true, user: response.user };
+    } catch (error) {
+      dispatch(loginFailure(error.message));
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signup = async (userData) => {
+    try {
+      dispatch(loginStart());
+      const response = await axiosClient.post(ENDPOINTS.AUTH.REGISTER, userData);
+      dispatch(loginSuccess(response));
+      return { success: true, user: response.user };
     } catch (error) {
       dispatch(loginFailure(error.message));
       return { success: false, error: error.message };
@@ -45,6 +57,7 @@ export function useAuth() {
     isLoading: auth.isLoading,
     error: auth.error,
     login,
+    signup,
     logout: handleLogout,
     hasPermission,
     hasRole,

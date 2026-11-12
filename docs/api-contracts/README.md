@@ -32,3 +32,4 @@
   - Query Params: `?status=PROCESSING&page=1&limit=10`
 - `PATCH /api/v1/orders/:id/status`
   - Request: `{ "status": "SHIPPED" }`
+

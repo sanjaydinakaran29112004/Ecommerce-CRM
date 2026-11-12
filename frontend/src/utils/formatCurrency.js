@@ -20,3 +20,4 @@ export function formatCurrency(amount, isMinorUnit = false) {
     maximumFractionDigits: 2,
   }).format(value);
 }
+

@@ -54,3 +54,4 @@ export function KpiOverview({ metrics, isLoading }) {
     </div>
   );
 }
+

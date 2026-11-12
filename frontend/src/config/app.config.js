@@ -12,3 +12,4 @@ export const APP_CONFIG = {
   DATE_FORMAT: 'dd MMM yyyy',
   DATE_TIME_FORMAT: 'dd MMM yyyy, hh:mm a',
 };
+

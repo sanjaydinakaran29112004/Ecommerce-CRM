@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { ROLE_MODULES, ROLES } from '@/config/permissions.config';
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +17,9 @@ import {
   UserCog,
   Settings,
   ShieldCheck,
+  Shield,
+  Briefcase,
+  Headphones,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -35,6 +39,28 @@ const NAV_ITEMS = [
 
 export function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
+
+  // Filter modules permitted for the logged-in person's role
+  const permittedPaths = ROLE_MODULES[user?.role] || ROLE_MODULES[ROLES.SALES_EMPLOYEE];
+  const visibleNavItems = NAV_ITEMS.filter((item) => permittedPaths.includes(item.path));
+
+  // Role Badge Styling
+  const getRoleBadge = (role) => {
+    switch (role) {
+      case ROLES.SUPER_ADMIN:
+        return { label: 'Super Admin', color: 'text-purple-400 bg-purple-950/60 border-purple-800' };
+      case ROLES.ADMIN:
+        return { label: 'Admin', color: 'text-brand-400 bg-brand-950/60 border-brand-800' };
+      case ROLES.SALES_EMPLOYEE:
+        return { label: 'Sales Employee', color: 'text-emerald-400 bg-emerald-950/60 border-emerald-800' };
+      case ROLES.SUPPORT_EMPLOYEE:
+        return { label: 'Support Employee', color: 'text-amber-400 bg-amber-950/60 border-amber-800' };
+      default:
+        return { label: 'Employee', color: 'text-slate-400 bg-slate-800 border-slate-700' };
+    }
+  };
+
+  const roleInfo = getRoleBadge(user?.role);
 
   return (
     <>
@@ -60,13 +86,19 @@ export function Sidebar({ isOpen, onClose }) {
           </div>
           <div>
             <h1 className="font-bold text-white text-base tracking-tight leading-none">EntryKode CRM</h1>
-            <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">E-Commerce Suite</p>
+            <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
+              E-Commerce Suite
+            </p>
           </div>
         </div>
 
-        {/* Navigation Items */}
+        {/* Navigation Items (Dynamically tailored to the person's role) */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            Navigation Menu ({visibleNavItems.length} Modules)
+          </div>
+
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -89,17 +121,26 @@ export function Sidebar({ isOpen, onClose }) {
           })}
         </nav>
 
-        {/* User Card in Sidebar Footer */}
+        {/* User Profile Card in Sidebar Footer */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
           <div className="flex items-center gap-3">
             <img
               src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={user?.name}
-              className="w-9 h-9 rounded-full object-cover border border-slate-700"
+              className="w-9 h-9 rounded-full object-cover border border-slate-700 shrink-0"
             />
             <div className="overflow-hidden flex-1">
               <p className="text-xs font-semibold text-white truncate">{user?.name || 'Sanjay D'}</p>
-              <p className="text-[10px] text-brand-400 font-mono truncate">{user?.role?.replace(/_/g, ' ') || 'Super Admin'}</p>
+              <div className="mt-0.5">
+                <span
+                  className={cn(
+                    'inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold border',
+                    roleInfo.color
+                  )}
+                >
+                  {roleInfo.label}
+                </span>
+              </div>
             </div>
           </div>
         </div>

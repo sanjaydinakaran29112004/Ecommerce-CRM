@@ -75,3 +75,4 @@ export const SEED_PRODUCTS = [
     createdAt: '2025-10-12T14:45:00Z',
   },
 ];
+

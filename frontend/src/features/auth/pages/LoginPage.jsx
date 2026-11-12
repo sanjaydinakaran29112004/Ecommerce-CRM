@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { SEED_USERS } from '@/services/mock/data/seedUsers';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
-import { Lock, Mail, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Sparkles, UserPlus } from 'lucide-react';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -35,10 +35,10 @@ export function LoginPage() {
     <Card className="border-slate-200/90 shadow-lg">
       <CardHeader
         title="Sign in to your account"
-        subtitle="Enter your employee credentials to access the CRM portal"
+        subtitle="Authenticate to view and manage your assigned e-commerce CRM workspace"
       />
 
-      <CardContent className="space-y-5 pt-2">
+      <CardContent className="space-y-4 pt-2">
         {error && (
           <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-rose-700 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -48,7 +48,7 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Corporate Email"
+            label="Corporate Email Address"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -70,7 +70,7 @@ export function LoginPage() {
           <div className="flex items-center justify-between text-xs">
             <label className="flex items-center gap-2 cursor-pointer text-slate-600">
               <input type="checkbox" defaultChecked className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              <span>Remember this device</span>
+              <span>Remember this session</span>
             </label>
             <a href="#" className="font-medium text-brand-600 hover:text-brand-700">
               Forgot password?
@@ -89,22 +89,36 @@ export function LoginPage() {
           </Button>
         </form>
 
-        {/* Quick Demo Credentials helper */}
-        <div className="pt-4 border-t border-slate-100">
+        {/* Dedicated Link to Signup Page */}
+        <div className="pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-xs text-slate-600">
+          <span>New staff member?</span>
+          <Link
+            to="/signup"
+            className="font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 underline"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Create an Account / Sign Up</span>
+          </Link>
+        </div>
+
+        {/* Quick Demo Profiles (Strictly 4 Roles) */}
+        <div className="pt-3 border-t border-slate-100">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mb-2.5">
             <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-            <span>Quick Login Demo Profiles:</span>
+            <span>Quick 1-Click Login (4 System Roles):</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            {SEED_USERS.slice(0, 4).map((u) => (
+            {SEED_USERS.map((u) => (
               <button
                 key={u.id}
                 type="button"
                 onClick={() => handleQuickLogin(u)}
-                className="text-left p-2 rounded-lg border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition-colors text-xs"
+                className="text-left p-2.5 rounded-lg border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition-colors text-xs"
               >
                 <div className="font-semibold text-slate-800 truncate">{u.name}</div>
-                <div className="text-[10px] text-slate-500 truncate">{u.role.replace(/_/g, ' ')}</div>
+                <div className="text-[10px] text-brand-600 font-mono font-medium truncate">
+                  {u.role.replace(/_/g, ' ')}
+                </div>
               </button>
             ))}
           </div>

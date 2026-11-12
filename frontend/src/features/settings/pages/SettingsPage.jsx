@@ -114,3 +114,4 @@ export function SettingsPage() {
     </div>
   );
 }
+

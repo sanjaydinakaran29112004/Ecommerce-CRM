@@ -47,3 +47,4 @@ export function ProtectedRoute({ children, allowedRoles, requiredPermission }) {
 
   return children;
 }
+

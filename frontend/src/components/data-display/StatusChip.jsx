@@ -106,3 +106,4 @@ export function StatusChip({ status, type = 'order', className }) {
     </Badge>
   );
 }
+
