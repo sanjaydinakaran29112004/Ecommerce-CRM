@@ -25,6 +25,15 @@ const startServer = async () => {
       console.log(`🔐 Auth Endpoints: \x1b[36mhttp://localhost:${config.port}/api/v1/auth\x1b[0m`);
       console.log(`======================================================\n`);
     });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\x1b[31m[PORT CONFLICT] Port ${config.port} is already in use by another process.\x1b[0m`);
+      } else {
+        console.error(`\x1b[31m[SERVER ERROR]\x1b[0m`, err.message);
+      }
+      process.exit(1);
+    });
   } catch (error) {
     console.error(`\x1b[31m[SERVER START ERROR]\x1b[0m Failed to start application:`, error.message);
     // Don't exit immediately in dev so developer can see the error in console

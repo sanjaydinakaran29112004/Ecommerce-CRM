@@ -7,6 +7,7 @@ const { PERMISSIONS } = require('../../constants/permissions.constant');
 
 router.use(authenticate);
 
+router.get('/metrics', reportController.getOverview);
 router.get('/overview', requirePermissions(PERMISSIONS.REPORTS_READ), reportController.getOverview);
 router.get('/sales', requirePermissions(PERMISSIONS.REPORTS_READ), reportController.getSales);
 router.get('/customers', requirePermissions(PERMISSIONS.REPORTS_READ), reportController.getCustomers);

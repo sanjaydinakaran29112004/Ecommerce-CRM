@@ -21,19 +21,23 @@ const createProductSchema = z.object({
       .toUpperCase()
       .trim(),
     description: z.string().trim().optional(),
-    category: z.string({ required_error: 'Category is required' }).trim(),
-    brand: z.string().trim().optional(),
-    pricePaise: z.coerce
-      .number({ required_error: 'Price in paise is required' })
-      .min(0, 'Price cannot be negative'),
+    category: z.string().default('Consumer Electronics'),
+    brand: z.string().trim().optional().default('EntryKode'),
+    price: z.coerce.number().optional(),
+    pricePaise: z.coerce.number().optional(),
     compareAtPricePaise: z.coerce.number().min(0).default(0),
     costPricePaise: z.coerce.number().min(0).default(0),
-    initialStock: z.coerce.number().min(0).default(0),
+    stock: z.coerce.number().optional(),
+    initialStock: z.coerce.number().min(0).default(50),
     lowStockThreshold: z.coerce.number().min(0).default(10),
-    images: z.array(z.string().url().trim()).optional(),
+    images: z.array(z.string().trim()).optional(),
     variants: z.array(variantValidation).optional(),
     tags: z.array(z.string().trim()).optional()
-  })
+  }).transform((b) => ({
+    ...b,
+    pricePaise: b.pricePaise !== undefined ? b.pricePaise : Math.round((Number(b.price) || 9999) * 100),
+    initialStock: b.initialStock !== undefined ? b.initialStock : Number(b.stock) || 50
+  }))
 });
 
 const updateProductSchema = z.object({

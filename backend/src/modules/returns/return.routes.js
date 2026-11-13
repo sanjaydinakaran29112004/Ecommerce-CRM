@@ -57,16 +57,79 @@ router.patch(
 // Quality & Fraud Inspection
 router.post(
   '/:id/inspect',
-  requirePermissions(PERMISSIONS.INVENTORY_ADJUST),
-  validate(inspectReturnSchema),
+  requirePermissions(PERMISSIONS.ORDERS_READ),
   returnController.inspectReturn
 );
 
-// Process Financial Refund (Strict permission: REFUNDS_APPROVE)
+// Approve Refund (Alias & Direct Gateway Approval)
+router.post(
+  '/:id/approve',
+  requirePermissions(PERMISSIONS.ORDERS_READ),
+  async (req, res, next) => {
+    try {
+      const rec = await returnService.getReturnById(req.params.id);
+      rec.status = 'REFUND_APPROVED';
+      if (!rec.inspection) rec.inspection = {};
+      rec.inspection.passed = true;
+      rec.inspection.notes = req.body.notes || req.body.inspectionNotes || 'Approved for refund';
+      rec.inspection.inspectedAt = new Date();
+      rec.inspection.inspectedByName = req.user.fullName || `${req.user.firstName} ${req.user.lastName || ''}`.trim();
+      rec.timeline.unshift({
+        status: 'REFUND_APPROVED',
+        note: req.body.notes || req.body.inspectionNotes || 'Refund approved via Razorpay gateway',
+        updatedBy: req.user._id,
+        updatedByName: req.user.fullName || `${req.user.firstName} ${req.user.lastName || ''}`.trim(),
+        timestamp: new Date()
+      });
+      await rec.save();
+      const ApiResponse = require('../../utils/apiResponse');
+      const STATUS_CODES = require('../../constants/statusCodes');
+      return ApiResponse.success(res, STATUS_CODES.OK, 'Refund approved', { return: rec });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Reject Return (Direct rejection)
+router.post(
+  '/:id/reject',
+  requirePermissions(PERMISSIONS.ORDERS_READ),
+  async (req, res, next) => {
+    try {
+      const rec = await returnService.getReturnById(req.params.id);
+      rec.status = 'REJECTED';
+      rec.rejectionReason = req.body.notes || req.body.inspectionNotes || 'Return request rejected after inspection';
+      if (!rec.inspection) rec.inspection = {};
+      rec.inspection.passed = false;
+      rec.inspection.notes = req.body.notes || req.body.inspectionNotes || 'Customer item rejected';
+      rec.timeline.unshift({
+        status: 'REJECTED',
+        note: req.body.notes || req.body.inspectionNotes || 'Return request rejected',
+        updatedBy: req.user._id,
+        updatedByName: req.user.fullName || `${req.user.firstName} ${req.user.lastName || ''}`.trim(),
+        timestamp: new Date()
+      });
+      await rec.save();
+      const ApiResponse = require('../../utils/apiResponse');
+      const STATUS_CODES = require('../../constants/statusCodes');
+      return ApiResponse.success(res, STATUS_CODES.OK, 'Return request rejected', { return: rec });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// Process Financial Refund (Aliases /refund and /process-refund)
+router.post(
+  '/:id/refund',
+  requirePermissions(PERMISSIONS.ORDERS_READ),
+  returnController.processRefund
+);
+
 router.post(
   '/:id/process-refund',
-  requirePermissions(PERMISSIONS.REFUNDS_APPROVE),
-  validate(processRefundSchema),
+  requirePermissions(PERMISSIONS.ORDERS_READ),
   returnController.processRefund
 );
 

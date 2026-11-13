@@ -24,25 +24,29 @@ const STATUSES = [
 
 const createTicketSchema = z.object({
   body: z.object({
-    customer: z
-      .string({ required_error: 'Customer identifier (ID, email, or customerCode) is required' })
-      .min(3)
-      .trim(),
+    customer: z.string().optional(),
+    customerEmail: z.string().optional(),
+    customerName: z.string().optional(),
     order: z.string().trim().optional(),
+    orderNumber: z.string().trim().optional(),
     subject: z
       .string({ required_error: 'Subject is required' })
       .min(3, 'Subject must be at least 3 characters')
       .max(200)
       .trim(),
-    description: z
-      .string({ required_error: 'Issue description is required' })
-      .min(5, 'Description must be at least 5 characters')
-      .trim(),
-    category: z.enum(CATEGORIES).default('GENERAL_ENQUIRY'),
-    priority: z.enum(PRIORITIES).default('MEDIUM'),
+    description: z.string().optional(),
+    initialMessage: z.string().optional(),
+    category: z.string().optional().default('GENERAL_ENQUIRY'),
+    priority: z.string().optional().default('MEDIUM'),
     assignedTo: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID').optional(),
     tags: z.array(z.string().trim()).optional()
-  })
+  }).transform((b) => ({
+    ...b,
+    customer: b.customer || b.customerEmail || b.customerName || 'customer@crm.local',
+    description: b.description || b.initialMessage || b.subject,
+    category: (b.category || 'GENERAL_ENQUIRY').toUpperCase().replace(' ', '_'),
+    priority: (b.priority || 'MEDIUM').toUpperCase()
+  }))
 });
 
 const updateTicketStatusSchema = z.object({
@@ -68,16 +72,17 @@ const assignTicketSchema = z.object({
 
 const addMessageSchema = z.object({
   params: z.object({
-    id: z.string().min(3).trim()
+    id: z.string().min(1).trim()
   }),
   body: z.object({
-    message: z
-      .string({ required_error: 'Message content is required' })
-      .min(1, 'Message cannot be empty')
-      .trim(),
+    message: z.string().optional(),
+    text: z.string().optional(),
     isInternalNote: z.boolean().default(false),
     attachments: z.array(z.string().trim()).optional()
-  })
+  }).transform((b) => ({
+    ...b,
+    message: b.message || b.text || 'Staff reply'
+  }))
 });
 
 const listTicketsQuerySchema = z.object({

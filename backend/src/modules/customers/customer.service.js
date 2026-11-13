@@ -9,32 +9,44 @@ class CustomerService {
   async createCustomer(customerData) {
     // Duplicate check on normalized email and phone
     const existing = await Customer.findOne({
-      $or: [{ email: customerData.email }, { phone: customerData.phone }]
+      $or: [{ email: customerData.email?.toLowerCase() }, { phone: customerData.phone }]
     });
 
     if (existing) {
-      if (existing.email === customerData.email) {
+      if (existing.email?.toLowerCase() === customerData.email?.toLowerCase()) {
         throw new ApiError(STATUS_CODES.CONFLICT, 'A customer with this email address already exists');
       }
       throw new ApiError(STATUS_CODES.CONFLICT, 'A customer with this phone number already exists');
     }
 
-    const customer = await Customer.create(customerData);
-    return customer;
+    const payload = {
+      ...customerData,
+      segment: (customerData.customerType || customerData.segment || 'NEW').toUpperCase()
+    };
+
+    const customer = await Customer.create(payload);
+    const obj = customer.toObject();
+    return {
+      ...obj,
+      id: customer._id.toString(),
+      customerType: customer.segment,
+      totalSpent: 0,
+      ordersCount: 0
+    };
   }
 
   /**
    * List customers with pagination, full-text search, and multi-facet filtering
    */
   async getCustomers(query) {
-    const { page, limit, search, segment, status, source, sortBy, order } = query;
+    const { page = 1, limit = 50, search, segment, status, source, sortBy = 'createdAt', order = 'desc' } = query;
     const filter = {};
 
     if (status) {
       filter.status = status;
     }
 
-    if (segment) {
+    if (segment && segment !== 'ALL') {
       filter.segment = segment;
     }
 
@@ -58,7 +70,7 @@ class CustomerService {
     const sortDirection = order === 'asc' ? 1 : -1;
     const sortOptions = { [sortBy]: sortDirection };
 
-    const [customers, total] = await Promise.all([
+    const [customersRaw, total] = await Promise.all([
       Customer.find(filter)
         .populate('assignedTo', 'firstName lastName email role')
         .sort(sortOptions)
@@ -67,6 +79,29 @@ class CustomerService {
         .lean(),
       Customer.countDocuments(filter)
     ]);
+
+    const customers = customersRaw.map((c) => {
+      const segmentType = c.segment || c.customerType || 'NEW';
+      const spentPaise = c.metrics?.totalSpentPaise ?? (c.totalSpent ? c.totalSpent * 100 : 0);
+      const ordersCount = c.metrics?.ordersCount ?? c.ordersCount ?? 0;
+      const assignedToName = c.assignedTo
+        ? typeof c.assignedTo === 'object'
+          ? `${c.assignedTo.firstName || ''} ${c.assignedTo.lastName || ''}`.trim() || c.assignedTo.email
+          : c.assignedTo
+        : 'Unassigned';
+
+      return {
+        ...c,
+        id: c._id?.toString() || c.id,
+        customerCode: c.customerCode || `CUST-${c._id?.toString().slice(-4)}`,
+        customerType: segmentType,
+        segment: segmentType,
+        totalSpent: spentPaise / 100,
+        ordersCount: ordersCount,
+        assignedTo: assignedToName,
+        assignedUser: c.assignedTo
+      };
+    });
 
     const totalPages = Math.ceil(total / limit) || 1;
 
@@ -87,11 +122,111 @@ class CustomerService {
    * Get single Customer 360 profile by ID
    */
   async getCustomerById(id) {
-    const customer = await Customer.findById(id).populate('assignedTo', 'firstName lastName email role');
-    if (!customer) {
+    const customerRaw = await Customer.findById(id).populate('assignedTo', 'firstName lastName email role').lean();
+    if (!customerRaw) {
       throw new ApiError(STATUS_CODES.NOT_FOUND, 'Customer not found');
     }
-    return customer;
+
+    const segmentType = customerRaw.segment || customerRaw.customerType || 'NEW';
+    const spentPaise = customerRaw.metrics?.totalSpentPaise ?? (customerRaw.totalSpent ? customerRaw.totalSpent * 100 : 0);
+    const ordersCount = customerRaw.metrics?.ordersCount ?? customerRaw.ordersCount ?? 0;
+
+    return {
+      ...customerRaw,
+      id: customerRaw._id?.toString() || customerRaw.id,
+      customerCode: customerRaw.customerCode || `CUST-${customerRaw._id?.toString().slice(-4)}`,
+      customerType: segmentType,
+      segment: segmentType,
+      totalSpent: spentPaise / 100,
+      ordersCount: ordersCount,
+      assignedTo: customerRaw.assignedTo
+        ? typeof customerRaw.assignedTo === 'object'
+          ? `${customerRaw.assignedTo.firstName || ''} ${customerRaw.assignedTo.lastName || ''}`.trim() || customerRaw.assignedTo.email
+          : customerRaw.assignedTo
+        : 'Unassigned',
+      assignedUser: customerRaw.assignedTo
+    };
+  }
+
+  /**
+   * Get all orders associated with this customer
+   */
+  async getCustomerOrders(customerId) {
+    const Order = require('../orders/order.model');
+    const customer = await Customer.findById(customerId).lean();
+    if (!customer) throw new ApiError(STATUS_CODES.NOT_FOUND, 'Customer not found');
+
+    const orders = await Order.find({
+      $or: [{ customer: customerId }, { 'customerSnapshot.email': customer.email }]
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return orders.map((o) => ({
+      ...o,
+      id: o._id?.toString() || o.id,
+      total: (o.totalAmountPaise || 0) / 100,
+      pricing: {
+        subtotal: (o.subtotalPaise || 0) / 100,
+        tax: (o.taxPaise || 0) / 100,
+        shipping: (o.shippingFeePaise || 0) / 100,
+        discount: (o.discountPaise || 0) / 100,
+        total: (o.totalAmountPaise || 0) / 100
+      }
+    }));
+  }
+
+  /**
+   * Get customer activity timeline
+   */
+  async getCustomerActivities(customerId) {
+    const customer = await Customer.findById(customerId).lean();
+    if (!customer) throw new ApiError(STATUS_CODES.NOT_FOUND, 'Customer not found');
+
+    const Order = require('../orders/order.model');
+    const SupportTicket = require('../support/support.model');
+
+    const [orders, tickets] = await Promise.all([
+      Order.find({
+        $or: [{ customer: customerId }, { 'customerSnapshot.email': customer.email }]
+      }).sort({ createdAt: -1 }).limit(10).lean(),
+      SupportTicket.find({
+        $or: [{ customer: customerId }, { 'customerSnapshot.email': customer.email }]
+      }).sort({ createdAt: -1 }).limit(10).lean()
+    ]);
+
+    const activities = [
+      {
+        id: `reg_${customer._id}`,
+        type: 'REGISTRATION',
+        title: 'Customer account registered on CRM',
+        timestamp: customer.createdAt,
+        badge: 'ACTIVE'
+      }
+    ];
+
+    orders.forEach((o) => {
+      activities.push({
+        id: `ord_${o._id}`,
+        type: 'ORDER',
+        title: `Placed Order #${o.orderNumber} - ₹${((o.totalAmountPaise || 0) / 100).toLocaleString('en-IN')}`,
+        timestamp: o.createdAt,
+        badge: o.orderStatus
+      });
+    });
+
+    tickets.forEach((t) => {
+      activities.push({
+        id: `tkt_${t._id}`,
+        type: 'TICKET',
+        title: `Opened Support Ticket #${t.ticketNumber}: ${t.subject}`,
+        timestamp: t.createdAt,
+        badge: t.status
+      });
+    });
+
+    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return activities;
   }
 
   /**

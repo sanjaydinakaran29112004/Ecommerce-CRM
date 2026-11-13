@@ -25,6 +25,7 @@ const campaignRoutes = require('./modules/campaigns/campaign.routes');
 const taskRoutes = require('./modules/tasks/task.routes');
 const reportRoutes = require('./modules/reports/report.routes');
 const auditLogRoutes = require('./modules/auditLogs/auditLog.routes');
+const userRoutes = require('./modules/users/user.routes');
 
 const app = express();
 
@@ -60,11 +61,15 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/support', supportRoutes);
+app.use('/api/v1/tickets', supportRoutes);
 app.use('/api/v1/returns', returnRoutes);
 app.use('/api/v1/campaigns', campaignRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/dashboard', reportRoutes);
 app.use('/api/v1/audit-logs', auditLogRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/employees', userRoutes);
 
 // Root route friendly welcome
 app.get('/', (req, res) => {

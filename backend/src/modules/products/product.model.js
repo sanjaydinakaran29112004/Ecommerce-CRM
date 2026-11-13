@@ -98,6 +98,10 @@ productSchema.virtual('priceRupees').get(function () {
   return (this.pricePaise || 0) / 100;
 });
 
+productSchema.virtual('price').get(function () {
+  return (this.pricePaise || 0) / 100;
+});
+
 productSchema.virtual('compareAtPriceRupees').get(function () {
   return (this.compareAtPricePaise || 0) / 100;
 });

@@ -29,8 +29,18 @@ class AuditLogService {
 
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const formattedLogs = logs.map((log) => ({
+      ...log,
+      id: log._id?.toString() || log.id,
+      actor: log.actor?.firstName
+        ? `${log.actor.firstName} ${log.actor.lastName || ''} (${log.actor.role || 'Staff'})`.trim()
+        : (typeof log.actor === 'string' ? log.actor : 'System Operator'),
+      timestamp: log.createdAt ? new Date(log.createdAt).toLocaleString('en-IN') : 'Recent',
+      details: log.details || (log.changes ? JSON.stringify(log.changes) : 'Action recorded in audit log')
+    }));
+
     return {
-      logs,
+      logs: formattedLogs,
       meta: {
         page: Number(page),
         limit: Number(limit),

@@ -12,10 +12,12 @@ const addressSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
-    street: { type: String, required: true, trim: true },
-    city: { type: String, required: true, trim: true },
-    state: { type: String, required: true, trim: true },
-    postalCode: { type: String, required: true, trim: true },
+    street: { type: String, trim: true, default: 'Main Street' },
+    addressLine: { type: String, trim: true },
+    city: { type: String, trim: true, default: 'Chennai' },
+    state: { type: String, trim: true, default: 'Tamil Nadu' },
+    postalCode: { type: String, trim: true, default: '600001' },
+    pincode: { type: String, trim: true },
     country: { type: String, default: 'India', trim: true }
   },
   { _id: true }
@@ -74,8 +76,8 @@ const customerSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ['WEBSITE', 'SHOPIFY', 'WOOCOMMERCE', 'SOCIAL_MEDIA', 'DIRECT_LEAD', 'REFERRAL', 'MANUAL'],
       default: 'WEBSITE',
+      trim: true,
       index: true
     },
     // Automated RFM (Recency, Frequency, Monetary) Dynamic Customer Segment
@@ -122,6 +124,40 @@ customerSchema.virtual('fullName').get(function () {
 // Virtual for Total Spent in Rupees
 customerSchema.virtual('metrics.totalSpentRupees').get(function () {
   return (this.metrics?.totalSpentPaise || 0) / 100;
+});
+
+customerSchema.virtual('customerType').get(function () {
+  return this.segment || 'NEW';
+});
+
+customerSchema.virtual('totalSpent').get(function () {
+  return (this.metrics?.totalSpentPaise || 0) / 100;
+});
+
+customerSchema.virtual('ordersCount').get(function () {
+  return this.metrics?.totalOrders || 0;
+});
+
+// Pre-validate hook to seamlessly normalize string addresses into embedded documents
+customerSchema.pre('validate', function (next) {
+  if (Array.isArray(this.addresses)) {
+    this.addresses = this.addresses.map((addr) => {
+      if (typeof addr === 'string') {
+        const parts = addr.split(',').map((s) => s.trim()).filter(Boolean);
+        const postal = (addr.match(/\b\d{6}\b/) || ['600001'])[0];
+        return {
+          type: 'SHIPPING',
+          street: parts[0] || addr,
+          city: parts[1] || 'Chennai',
+          state: parts[2] || 'Tamil Nadu',
+          postalCode: postal,
+          country: 'India'
+        };
+      }
+      return addr;
+    });
+  }
+  next();
 });
 
 // Auto-generate unique Customer Code (e.g. CUST-2411-9382)

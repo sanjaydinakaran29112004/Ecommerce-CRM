@@ -20,12 +20,14 @@ export function StatusChip({ status, type = 'order', className }) {
         variant = 'success';
         break;
       case 'SHIPPED':
+      case 'OUT_FOR_DELIVERY':
       case 'OUT FOR DELIVERY':
       case 'CONFIRMED':
         variant = 'brand';
         break;
       case 'PROCESSING':
       case 'PACKED':
+      case 'PLACED':
       case 'PENDING':
         variant = 'warning';
         break;
@@ -33,6 +35,27 @@ export function StatusChip({ status, type = 'order', className }) {
       case 'FAILED':
       case 'REFUNDED':
         variant = 'danger';
+        break;
+      default:
+        variant = 'neutral';
+    }
+  } else if (type === 'payment') {
+    switch (normalized) {
+      case 'PAID':
+        variant = 'success';
+        break;
+      case 'PENDING':
+      case 'AUTHORIZED':
+        variant = 'warning';
+        break;
+      case 'FAILED':
+        variant = 'danger';
+        break;
+      case 'PARTIALLY_REFUNDED':
+        variant = 'purple';
+        break;
+      case 'REFUNDED':
+        variant = 'neutral';
         break;
       default:
         variant = 'neutral';

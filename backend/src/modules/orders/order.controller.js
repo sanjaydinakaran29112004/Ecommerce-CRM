@@ -34,7 +34,9 @@ class OrderController {
    */
   getOrderById = asyncHandler(async (req, res) => {
     const order = await orderService.getOrderById(req.params.id);
-    return ApiResponse.success(res, STATUS_CODES.OK, 'Order details retrieved', { order });
+    return ApiResponse.success(res, STATUS_CODES.OK, 'Order details retrieved', {
+      order: orderService.formatOrder(order),
+    });
   });
 
   /**

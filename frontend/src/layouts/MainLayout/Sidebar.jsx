@@ -129,12 +129,14 @@ export function Sidebar({ isOpen, onClose }) {
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
           <div className="flex items-center gap-3">
             <img
-              src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-              alt={user?.name}
+              src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || user?.firstName || 'User')}&background=4f46e5&color=fff`}
+              alt={user?.name || 'Authorized User'}
               className="w-9 h-9 rounded-full object-cover border border-slate-700 shrink-0"
             />
             <div className="overflow-hidden flex-1">
-              <p className="text-xs font-semibold text-white truncate">{user?.name || 'Authorized User'}</p>
+              <p className="text-xs font-semibold text-white truncate">
+                {user?.name || user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || 'Authorized User'}
+              </p>
               <div className="mt-0.5">
                 <span
                   className={cn(

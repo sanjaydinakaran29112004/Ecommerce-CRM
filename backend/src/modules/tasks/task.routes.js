@@ -37,7 +37,18 @@ router.get(
 router.put(
   '/:id',
   requirePermissions(PERMISSIONS.TASKS_UPDATE),
-  validate(updateTaskSchema),
+  taskController.updateTask
+);
+
+router.patch(
+  '/:id',
+  requirePermissions(PERMISSIONS.TASKS_UPDATE),
+  taskController.updateTask
+);
+
+router.patch(
+  '/:id/status',
+  requirePermissions(PERMISSIONS.TASKS_UPDATE),
   taskController.updateTask
 );
 

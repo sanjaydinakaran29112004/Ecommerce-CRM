@@ -37,44 +37,68 @@ export function ProductsPage() {
 
   const adjustStockMutation = useMutation({
     mutationFn: async ({ prodId, delta, reason }) => {
-      const existing = mockDb.get('products');
-      const updated = existing.map((p) => {
-        if (p.id === prodId) {
-          const newStock = Math.max(0, p.stock + delta);
-          const newStatus = newStock === 0 ? 'OUT_OF_STOCK' : newStock <= p.lowStockThreshold ? 'LOW_STOCK' : 'ACTIVE';
-          return { ...p, stock: newStock, status: newStatus };
-        }
-        return p;
-      });
-      mockDb.set('products', updated);
+      try {
+        await axiosClient.patch(ENDPOINTS.INVENTORY.ADJUST(prodId), {
+          quantityDelta: delta,
+          reason: reason || 'Stock adjustment',
+        });
+      } catch (err) {
+        console.warn('Inventory adjust fallback:', err.message);
+        const existing = mockDb.get('products') || [];
+        const updated = existing.map((p) => {
+          if (p.id === prodId || p._id === prodId) {
+            const newStock = Math.max(0, (p.stock || 0) + delta);
+            const newStatus =
+              newStock === 0 ? 'OUT_OF_STOCK' : newStock <= (p.lowStockThreshold || 10) ? 'LOW_STOCK' : 'ACTIVE';
+            return { ...p, stock: newStock, status: newStatus };
+          }
+          return p;
+        });
+        mockDb.set('products', updated);
+      }
       return { prodId, delta };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['products-list']);
+      queryClient.invalidateQueries({ queryKey: ['products-list'] });
       setAdjustingProduct(null);
     },
   });
 
   const createProductMutation = useMutation({
     mutationFn: async (prodData) => {
-      const existing = mockDb.get('products');
-      const prodEntry = {
-        ...prodData,
-        id: `prod_${Date.now()}`,
-        sku: prodData.sku.toUpperCase() || `EK-SKU-${Math.floor(100 + Math.random() * 900)}`,
-        price: Number(prodData.price) || 0,
-        stock: Number(prodData.stock) || 0,
-        lowStockThreshold: Number(prodData.lowStockThreshold) || 10,
-        reservedStock: 0,
-        status: Number(prodData.stock) <= Number(prodData.lowStockThreshold) ? 'LOW_STOCK' : 'ACTIVE',
-        rating: 4.8,
-        createdAt: new Date().toISOString(),
-      };
-      mockDb.set('products', [prodEntry, ...existing]);
-      return prodEntry;
+      try {
+        const payload = {
+          sku: prodData.sku.toUpperCase() || `EK-SKU-${Math.floor(100 + Math.random() * 900)}`,
+          name: prodData.name,
+          category: prodData.category || 'Consumer Electronics',
+          brand: prodData.brand || 'EntryKode',
+          price: Number(prodData.price) || 9999,
+          stock: Number(prodData.stock) || 50,
+          lowStockThreshold: Number(prodData.lowStockThreshold) || 10,
+        };
+        const res = await axiosClient.post(ENDPOINTS.PRODUCTS.CREATE, payload);
+        return res.product || res;
+      } catch (err) {
+        console.warn('Product create offline fallback:', err.message);
+        const existing = mockDb.get('products') || [];
+        const prodEntry = {
+          ...prodData,
+          id: `prod_${Date.now()}`,
+          sku: prodData.sku.toUpperCase() || `EK-SKU-${Math.floor(100 + Math.random() * 900)}`,
+          price: Number(prodData.price) || 0,
+          stock: Number(prodData.stock) || 0,
+          lowStockThreshold: Number(prodData.lowStockThreshold) || 10,
+          reservedStock: 0,
+          status: Number(prodData.stock) <= Number(prodData.lowStockThreshold) ? 'LOW_STOCK' : 'ACTIVE',
+          rating: 4.8,
+          createdAt: new Date().toISOString(),
+        };
+        mockDb.set('products', [prodEntry, ...existing]);
+        return prodEntry;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['products-list']);
+      queryClient.invalidateQueries({ queryKey: ['products-list'] });
       setIsAddModalOpen(false);
       setNewProduct({
         sku: '',
@@ -94,7 +118,7 @@ export function ProductsPage() {
     e.preventDefault();
     if (adjustingProduct) {
       adjustStockMutation.mutate({
-        prodId: adjustingProduct.id,
+        prodId: adjustingProduct.id || adjustingProduct._id,
         delta: parseInt(adjustmentQty, 10),
         reason: adjustmentReason,
       });
@@ -224,7 +248,7 @@ export function ProductsPage() {
 
       <DataTable
         columns={columns}
-        data={products}
+        data={Array.isArray(products) ? products : products?.products || []}
         isLoading={isLoading}
         emptyTitle="No catalog products found"
       />

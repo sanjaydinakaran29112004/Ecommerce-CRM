@@ -37,6 +37,10 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
   const [netbankingUserId, setNetbankingUserId] = useState('409281729');
   const [netbankingPassword, setNetbankingPassword] = useState('BankPass@2026');
+  const [stripeCard, setStripeCard] = useState('4242 4242 4242 4242');
+  const [stripeExpiry, setStripeExpiry] = useState('12/28');
+  const [stripeCvc, setStripeCvc] = useState('884');
+  const [bankUtrInput, setBankUtrInput] = useState('UTR202611139401');
 
   // Validation & Error states
   const [errors, setErrors] = useState({});
@@ -101,7 +105,11 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
 
       // Auto-select method based on order
       const pm = (orderData?.paymentMethod || '').toLowerCase();
-      if (pm.includes('card')) {
+      if (pm.includes('stripe')) {
+        setMethod('stripe');
+      } else if (pm.includes('bank') || pm.includes('neft') || pm.includes('transfer')) {
+        setMethod('bank_transfer');
+      } else if (pm.includes('card')) {
         setMethod('card');
       } else if (pm.includes('netbanking') || pm.includes('net banking')) {
         setMethod('netbanking');
@@ -180,6 +188,22 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
       }
       if (!netbankingPassword || netbankingPassword.trim().length < 4) {
         errs.netbankingPassword = 'NetBanking login password is required (min 4 characters)';
+      }
+    }
+
+    if (method === 'stripe') {
+      const cleanNum = stripeCard.replace(/\s+/g, '');
+      if (!cleanNum || cleanNum.length < 16) {
+        errs.stripeCard = 'Stripe test card must be 16 valid digits (Use 4242 4242 4242 4242)';
+      }
+      if (!stripeCvc || stripeCvc.length < 3) {
+        errs.stripeCvc = 'CVC is required (3 digits)';
+      }
+    }
+
+    if (method === 'bank_transfer') {
+      if (!bankUtrInput || bankUtrInput.trim().length < 6) {
+        errs.bankUtrInput = 'Bank Reference / UTR Number is required (min 6 characters)';
       }
     }
 
@@ -271,15 +295,30 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
     }, 1200);
 
     setTimeout(() => {
-      const generatedPayId = `pay_Rzp${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
-      const generatedRrn = `RRN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      const generatedUtr = `UTR-20261112-${Math.floor(100000000 + Math.random() * 900000000)}`;
+      let generatedPayId = `pay_Rzp${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+      let generatedRrn = `RRN-${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+      let generatedUtr = `UTR-20261112-${Math.floor(100000000 + Math.random() * 900000000)}`;
+      let gatewayName = 'RAZORPAY';
+      let methodLabel = method === 'card' ? `CARD (${detectCardBrand(cardNumber)})` : method.toUpperCase();
+
+      if (method === 'stripe') {
+        generatedPayId = `ch_Stripe_${Math.random().toString(36).substring(2, 12)}`;
+        generatedUtr = `STRIPE-TXN-${Date.now().toString().slice(-8)}`;
+        gatewayName = 'STRIPE';
+        methodLabel = 'STRIPE (Credit/Debit Card)';
+      } else if (method === 'bank_transfer') {
+        generatedPayId = `neft_ICICI_${Date.now().toString().slice(-8)}`;
+        generatedUtr = bankUtrInput || `UTR-${Date.now()}`;
+        gatewayName = 'BANK_TRANSFER';
+        methodLabel = 'BANK TRANSFER (NEFT/RTGS)';
+      }
 
       const result = {
         paymentId: generatedPayId,
         bankRrn: generatedRrn,
         utrNumber: generatedUtr,
-        method: method === 'card' ? `CARD (${detectCardBrand(cardNumber)})` : method.toUpperCase(),
+        gateway: gatewayName,
+        method: methodLabel,
         amount: totalAmount,
         paidAt: new Date().toISOString(),
         orderNumber,
@@ -287,8 +326,8 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
         status: 'CAPTURED',
         merchantAccount: {
           name: 'EntryKode Technologies Pvt Ltd',
-          bank: 'ICICI Bank Ltd (Current A/C)',
-          accountNumber: '002905008842',
+          bank: gatewayName === 'STRIPE' ? 'Stripe Gateway (USD/INR Settlement)' : 'ICICI Bank Ltd (Current A/C)',
+          accountNumber: gatewayName === 'STRIPE' ? 'acct_1StripeMerchant2026' : '002905008842',
           ifsc: 'ICIC0000029',
           settlementStatus: 'FUNDS RECEIVED IN MERCHANT ACCOUNT',
         },
@@ -413,6 +452,38 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
               >
                 <Truck className="w-4 h-4 shrink-0" />
                 <span>Cash on Delivery</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMethod('stripe');
+                  setErrors({});
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all cursor-pointer ${
+                  method === 'stripe'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 shrink-0" />
+                <span>Stripe Gateway</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMethod('bank_transfer');
+                  setErrors({});
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-semibold flex items-center gap-2.5 transition-all cursor-pointer ${
+                  method === 'bank_transfer'
+                    ? 'bg-slate-800 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Building2 className="w-4 h-4 shrink-0" />
+                <span>Bank NEFT / RTGS</span>
               </button>
 
               <div className="pt-4 px-2">
@@ -746,6 +817,119 @@ export function RazorpayGatewayModal({ isOpen, onClose, orderData, onPaymentSucc
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600">
                     <span className="font-semibold block text-slate-800 mb-0.5">Delivery Address:</span>
                     <p className="text-[11px] text-slate-500">{orderData?.shippingAddress || 'Customer shipping address on file'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* STRIPE GLOBAL CARD GATEWAY */}
+              {method === 'stripe' && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-indigo-50/80 rounded-xl border border-indigo-200 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-indigo-950 block">Stripe Global Card Processing</span>
+                      <span className="text-[11px] text-indigo-700">Accepts International Visa, Mastercard, American Express</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStripeCard('4242 4242 4242 4242');
+                        setStripeExpiry('12/28');
+                        setStripeCvc('884');
+                      }}
+                      className="text-[10px] bg-indigo-600 text-white font-bold px-2 py-1 rounded shadow-2xs hover:bg-indigo-700 cursor-pointer"
+                    >
+                      Fill Test Card
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Card Number
+                    </label>
+                    <input
+                      type="text"
+                      value={stripeCard}
+                      onChange={(e) => setStripeCard(e.target.value)}
+                      placeholder="4242 4242 4242 4242"
+                      className="w-full text-xs p-2 rounded-lg border font-mono font-medium focus:outline-hidden bg-white border-slate-300 focus:border-indigo-500"
+                    />
+                    {errors.stripeCard && (
+                      <p className="text-[10px] text-rose-600 font-medium mt-1">{errors.stripeCard}</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Expiry Date
+                      </label>
+                      <input
+                        type="text"
+                        value={stripeExpiry}
+                        onChange={(e) => setStripeExpiry(e.target.value)}
+                        placeholder="MM/YY"
+                        className="w-full text-xs p-2 rounded-lg border font-mono font-medium focus:outline-hidden bg-white border-slate-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        CVC / Security Code
+                      </label>
+                      <input
+                        type="password"
+                        value={stripeCvc}
+                        onChange={(e) => setStripeCvc(e.target.value)}
+                        placeholder="123"
+                        maxLength={4}
+                        className="w-full text-xs p-2 rounded-lg border font-mono font-medium focus:outline-hidden bg-white border-slate-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* BANK TRANSFER (NEFT / RTGS) */}
+              {method === 'bank_transfer' && (
+                <div className="space-y-3">
+                  <div className="p-3 bg-slate-100 rounded-xl border border-slate-300 text-xs space-y-1.5">
+                    <span className="font-bold text-slate-900 block">EntryKode Corporate Bank Account</span>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase">Bank Name</span>
+                        <strong>ICICI Bank Ltd</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase">Current A/C Number</span>
+                        <strong className="font-mono">002905008842</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase">IFSC Code</span>
+                        <strong className="font-mono">ICIC0000029</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[9px] uppercase">Beneficiary Name</span>
+                        <strong>EntryKode Technologies Pvt Ltd</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                      Bank Transaction UTR / Ref Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={bankUtrInput}
+                      onChange={(e) => setBankUtrInput(e.target.value)}
+                      placeholder="e.g. UTR202611139401"
+                      className="w-full text-xs p-2.5 rounded-lg border font-mono font-medium focus:outline-hidden bg-white border-slate-300 focus:border-slate-800"
+                    />
+                    {errors.bankUtrInput && (
+                      <p className="text-[10px] text-rose-600 font-medium mt-1">{errors.bankUtrInput}</p>
+                    )}
+                    <span className="text-[10px] text-slate-400 block mt-1">
+                      Enter the UTR reference number from your net banking transaction receipt.
+                    </span>
                   </div>
                 </div>
               )}

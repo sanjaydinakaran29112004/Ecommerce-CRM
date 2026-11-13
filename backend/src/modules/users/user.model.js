@@ -43,6 +43,14 @@ const userSchema = new mongoose.Schema(
       default: ROLES.SALES_EXECUTIVE,
       index: true
     },
+    department: {
+      type: String,
+      trim: true
+    },
+    avatar: {
+      type: String,
+      trim: true
+    },
     customPermissions: {
       type: [String],
       default: []
@@ -69,6 +77,10 @@ const userSchema = new mongoose.Schema(
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function () {
+  return `${this.firstName} ${this.lastName || ''}`.trim();
+});
+
+userSchema.virtual('name').get(function () {
   return `${this.firstName} ${this.lastName || ''}`.trim();
 });
 

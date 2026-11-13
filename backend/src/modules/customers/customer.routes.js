@@ -45,6 +45,20 @@ router.get(
   customerController.getCustomerById
 );
 
+// Get Customer Orders
+router.get(
+  '/:id/orders',
+  requirePermissions(PERMISSIONS.CUSTOMERS_READ),
+  customerController.getCustomerOrders
+);
+
+// Get Customer Activity Timeline
+router.get(
+  '/:id/activities',
+  requirePermissions(PERMISSIONS.CUSTOMERS_READ),
+  customerController.getCustomerActivities
+);
+
 // Update Customer Profile
 router.put(
   '/:id',

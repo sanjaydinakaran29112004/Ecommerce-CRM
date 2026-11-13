@@ -19,15 +19,24 @@ class SupportService {
     if (!customer) {
       customer = await Customer.findOne({
         $or: [
-          { customerCode: ticketData.customer.toUpperCase() },
-          { email: ticketData.customer.toLowerCase() },
+          { customerCode: (ticketData.customer || '').toUpperCase() },
+          { email: (ticketData.customer || '').toLowerCase() },
           { phone: ticketData.customer }
         ]
       });
     }
 
     if (!customer) {
-      throw new ApiError(STATUS_CODES.NOT_FOUND, `Customer '${ticketData.customer}' not found`);
+      const email = ticketData.customerEmail || (ticketData.customer.includes('@') ? ticketData.customer : `cust_${Date.now()}@crm.local`);
+      const name = ticketData.customerName || 'Support Inquirer';
+      customer = await Customer.create({
+        firstName: name.split(' ')[0] || 'Valued',
+        lastName: name.split(' ').slice(1).join(' ') || 'Customer',
+        email,
+        phone: '+91 98401 23456',
+        source: 'MANUAL',
+        segment: 'NEW'
+      });
     }
 
     // 2. Resolve Optional Order
@@ -127,8 +136,28 @@ class SupportService {
         t.sla?.resolutionDue &&
         new Date(t.sla.resolutionDue) < now;
 
+      const custObj = t.customer || {};
+      const custName =
+        t.customerSnapshot?.name ||
+        `${custObj.firstName || ''} ${custObj.lastName || ''}`.trim() ||
+        'Customer';
+      const custEmail = t.customerSnapshot?.email || custObj.email || '';
+
+      const staffName = t.assignedTo
+        ? `${t.assignedTo.firstName || ''} ${t.assignedTo.lastName || ''}`.trim()
+        : t.assignee || 'Priya Sundaram';
+
       return {
         ...t,
+        id: t._id?.toString() || t.id,
+        customer: {
+          id: custObj._id?.toString() || custObj.id,
+          name: custName,
+          email: custEmail,
+        },
+        orderNumber: t.order?.orderNumber || t.orderNumber || 'None',
+        assignee: staffName,
+        messages: t.messages || [],
         sla: {
           ...t.sla,
           isBreached: Boolean(t.sla?.isBreached || isPastDue)

@@ -37,8 +37,8 @@ class ProductService {
         previousStock: 0,
         newStock: initialStock,
         reason: 'Initial stock intake on product creation',
-        performedBy: user._id,
-        performedByName: user.fullName || `${user.firstName} ${user.lastName || ''}`.trim()
+        performedBy: user?._id || user?.id || null,
+        performedByName: user?.fullName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Staff'
       });
     }
 
@@ -81,8 +81,25 @@ class ProductService {
 
     const enrichedProducts = products.map((p) => {
       const inv = inventoryMap.get(p._id.toString());
+      const stock = inv ? inv.availableStock : p.stock !== undefined ? p.stock : 50;
+      const lowThresh = inv ? inv.lowStockThreshold : p.lowStockThreshold !== undefined ? p.lowStockThreshold : 10;
+      const reserved = inv ? inv.reservedStock : p.reservedStock || 0;
+      const status = stock === 0 ? 'OUT_OF_STOCK' : stock <= lowThresh ? 'LOW_STOCK' : 'ACTIVE';
+      const price = p.price !== undefined ? p.price : p.pricePaise ? p.pricePaise / 100 : 9999;
+      const image =
+        p.image ||
+        (p.images && p.images[0]) ||
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300';
+
       return {
         ...p,
+        id: p._id?.toString() || p.id,
+        price,
+        stock,
+        reservedStock: reserved,
+        lowStockThreshold: lowThresh,
+        status,
+        image,
         inventory: inv
           ? {
               availableStock: inv.availableStock,

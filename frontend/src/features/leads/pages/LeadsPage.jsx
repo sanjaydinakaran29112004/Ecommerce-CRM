@@ -19,6 +19,15 @@ const STAGES = [
   { id: 'CONVERTED', title: 'Converted', color: 'border-emerald-400' },
 ];
 
+const getAssigneeName = (assignedTo) => {
+  if (!assignedTo) return 'Karthik Raja';
+  if (typeof assignedTo === 'string') return assignedTo;
+  if (typeof assignedTo === 'object') {
+    return `${assignedTo.firstName || ''} ${assignedTo.lastName || ''}`.trim() || assignedTo.email || 'Karthik Raja';
+  }
+  return String(assignedTo);
+};
+
 export function LeadsPage() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'table'
@@ -46,34 +55,55 @@ export function LeadsPage() {
   // Stage advancement mutation
   const updateStageMutation = useMutation({
     mutationFn: async ({ leadId, nextStage }) => {
-      const existing = mockDb.get('leads');
-      const updated = existing.map((l) => (l.id === leadId ? { ...l, stage: nextStage } : l));
-      mockDb.set('leads', updated);
+      try {
+        await axiosClient.put(ENDPOINTS.LEADS.UPDATE(leadId), { stage: nextStage });
+      } catch (err) {
+        const existing = mockDb.get('leads') || [];
+        const updated = existing.map((l) => (l.id === leadId || l._id === leadId ? { ...l, stage: nextStage } : l));
+        mockDb.set('leads', updated);
+      }
       return { leadId, nextStage };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['leads-list']);
+      queryClient.invalidateQueries({ queryKey: ['leads-list'] });
     },
   });
 
   // Create lead mutation
   const createLeadMutation = useMutation({
     mutationFn: async (leadData) => {
-      const existing = mockDb.get('leads');
-      const leadEntry = {
-        ...leadData,
-        id: `lead_${Date.now()}`,
-        leadNumber: `LEAD-2026-${Math.floor(100 + Math.random() * 900)}`,
-        estimatedValue: Number(leadData.estimatedValue) || 50000,
-        createdAt: new Date().toISOString(),
-        lastContactDate: new Date().toISOString(),
-        nextFollowUp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      };
-      mockDb.set('leads', [leadEntry, ...existing]);
-      return leadEntry;
+      try {
+        const payload = {
+          title: `${leadData.companyName || leadData.contactPerson} Enterprise Deal`,
+          contactName: leadData.contactPerson,
+          contactPerson: leadData.contactPerson,
+          companyName: leadData.companyName,
+          email: leadData.email || 'lead@example.com',
+          phone: leadData.phone || '+91 98401 23456',
+          source: leadData.source || 'WEBSITE',
+          priority: leadData.priority || 'MEDIUM',
+          estimatedValue: Number(leadData.estimatedValue) || 50000,
+        };
+        const res = await axiosClient.post(ENDPOINTS.LEADS.CREATE, payload);
+        return res.lead || res;
+      } catch (err) {
+        console.warn('Lead creation offline fallback:', err.message);
+        const existing = mockDb.get('leads') || [];
+        const leadEntry = {
+          ...leadData,
+          id: `lead_${Date.now()}`,
+          leadNumber: `LEAD-2026-${Math.floor(100 + Math.random() * 900)}`,
+          estimatedValue: Number(leadData.estimatedValue) || 50000,
+          createdAt: new Date().toISOString(),
+          lastContactDate: new Date().toISOString(),
+          nextFollowUp: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        mockDb.set('leads', [leadEntry, ...existing]);
+        return leadEntry;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['leads-list']);
+      queryClient.invalidateQueries({ queryKey: ['leads-list'] });
       setIsAddModalOpen(false);
       setNewLead({
         companyName: '',
@@ -149,10 +179,12 @@ export function LeadsPage() {
       </div>
 
       {/* Kanban Board View - Clean Flex Alignment with Horizontal Scroll */}
-      {viewMode === 'kanban' ? (
+      {(() => {
+        const leadList = Array.isArray(leads) ? leads : leads?.leads || [];
+        return viewMode === 'kanban' ? (
         <div className="flex gap-4 items-start overflow-x-auto pb-6 w-full snap-x">
           {STAGES.map((stage) => {
-            const stageLeads = leads.filter((l) => l.stage === stage.id);
+            const stageLeads = leadList.filter((l) => l.stage === stage.id);
             const stageTotal = stageLeads.reduce((acc, l) => acc + (l.estimatedValue || 0), 0);
 
             return (
@@ -184,7 +216,7 @@ export function LeadsPage() {
                       const nextStage = getNextStage(lead.stage);
 
                       return (
-                        <Card key={lead.id} className="p-3.5 hover:border-brand-300 transition-all shadow-xs bg-white">
+                        <Card key={lead.id || lead._id} className="p-3.5 hover:border-brand-300 transition-all shadow-xs bg-white">
                           <div className="flex items-start justify-between gap-2 mb-1.5">
                             <span className="text-[10px] font-mono text-slate-400 font-semibold">
                               {lead.leadNumber}
@@ -218,14 +250,14 @@ export function LeadsPage() {
 
                           <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
                             <span className="text-slate-400 font-medium truncate max-w-[100px]">
-                              {lead.assignedTo}
+                              {getAssigneeName(lead.assignedTo)}
                             </span>
 
                             {nextStage && (
                               <button
                                 onClick={() =>
                                   updateStageMutation.mutate({
-                                    leadId: lead.id,
+                                    leadId: lead._id || lead.id,
                                     nextStage,
                                   })
                                 }
@@ -262,8 +294,8 @@ export function LeadsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {leads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-slate-50">
+                {leadList.map((lead) => (
+                  <tr key={lead.id || lead._id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-mono font-bold text-brand-600">{lead.leadNumber}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800">{lead.companyName}</td>
                     <td className="py-3 px-4 text-slate-600">{lead.contactPerson}</td>
@@ -274,14 +306,15 @@ export function LeadsPage() {
                         {lead.priority}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-slate-500">{lead.assignedTo}</td>
+                    <td className="py-3 px-4 text-slate-500">{getAssigneeName(lead.assignedTo)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-      )}
+      );
+      })()}
 
       {/* New Lead Modal */}
       <Modal

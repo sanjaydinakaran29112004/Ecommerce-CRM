@@ -23,7 +23,14 @@ class PaymentController {
       }
     }
 
-    const order = await Order.findById(orderId);
+    let order = null;
+    const mongoose = require('mongoose');
+    if (mongoose.Types.ObjectId.isValid(orderId)) {
+      order = await Order.findById(orderId);
+    }
+    if (!order && orderId) {
+      order = await Order.findOne({ orderNumber: String(orderId).toUpperCase() });
+    }
     if (!order) {
       throw new ApiError(STATUS_CODES.NOT_FOUND, 'Order not found');
     }

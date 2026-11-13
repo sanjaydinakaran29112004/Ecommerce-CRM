@@ -7,6 +7,14 @@ import { NavLink } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 
 export function RecentOrdersTable({ orders = [] }) {
+  const sortedOrders = React.useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const dateA = new Date(a.placedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.placedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [orders]);
+
   return (
     <Card className="col-span-1 lg:col-span-3">
       <CardHeader
@@ -36,41 +44,48 @@ export function RecentOrdersTable({ orders = [] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-            {orders.length === 0 ? (
+            {sortedOrders.length === 0 ? (
               <tr>
                 <td colSpan="7" className="py-8 text-center text-slate-400">
                   No orders found in this date range. Switch to "30 Days" or "All Orders" to view more records.
                 </td>
               </tr>
             ) : (
-              orders.slice(0, 5).map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-semibold text-brand-600">
-                    {order.orderNumber}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div className="font-semibold text-slate-800">{order.customer.name}</div>
-                    <div className="text-[10px] text-slate-400">{order.customer.email}</div>
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-600">
-                    {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
-                  </td>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">
-                    {formatCurrency(order.pricing.total)}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      {order.paymentStatus}
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <StatusChip status={order.orderStatus} type="order" />
-                  </td>
-                  <td className="py-3.5 px-4 text-slate-500">
-                    {formatDate(order.placedAt, 'dd MMM, hh:mm a')}
-                  </td>
-                </tr>
-              ))
+              sortedOrders.slice(0, 8).map((order) => {
+                const custName = order.customer?.name || order.customerSnapshot?.name || 'Customer';
+                const custEmail = order.customer?.email || order.customerSnapshot?.email || '';
+                const total = order.pricing?.total ?? (order.totalAmountPaise ? order.totalAmountPaise / 100 : 0);
+                const itemsList = (order.items || []).map((i) => `${i.quantity}x ${i.name}`).join(', ');
+
+                return (
+                  <tr key={order.id || order._id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-3.5 px-4 font-mono font-semibold text-brand-600">
+                      {order.orderNumber}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div className="font-semibold text-slate-800">{custName}</div>
+                      <div className="text-[10px] text-slate-400">{custEmail}</div>
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-600">
+                      {itemsList || '1x Order Package'}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold text-slate-900">
+                      {formatCurrency(total)}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {order.paymentStatus || 'PENDING'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <StatusChip status={order.orderStatus || 'PLACED'} type="order" />
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-500">
+                      {formatDate(order.placedAt || order.createdAt, 'dd MMM, hh:mm a')}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

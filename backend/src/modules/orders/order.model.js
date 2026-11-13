@@ -34,10 +34,10 @@ const orderStatusHistorySchema = new mongoose.Schema(
 
 const orderAddressSchema = new mongoose.Schema(
   {
-    street: { type: String, required: true, trim: true },
-    city: { type: String, required: true, trim: true },
-    state: { type: String, required: true, trim: true },
-    postalCode: { type: String, required: true, trim: true },
+    street: { type: String, default: 'Main Street', trim: true },
+    city: { type: String, default: 'Chennai', trim: true },
+    state: { type: String, default: 'Tamil Nadu', trim: true },
+    postalCode: { type: String, default: '600001', trim: true },
     country: { type: String, default: 'India', trim: true }
   },
   { _id: false }
@@ -127,6 +127,47 @@ orderSchema.virtual('totalAmountRupees').get(function () {
 
 orderSchema.virtual('subtotalRupees').get(function () {
   return (this.subtotalPaise || 0) / 100;
+});
+
+orderSchema.virtual('pricing').get(function () {
+  return {
+    subtotal: (this.subtotalPaise || 0) / 100,
+    tax: (this.taxPaise || 0) / 100,
+    shipping: (this.shippingFeePaise || 0) / 100,
+    discount: (this.discountPaise || 0) / 100,
+    total: (this.totalAmountPaise || 0) / 100,
+  };
+});
+
+orderSchema.virtual('customerName').get(function () {
+  return this.customerSnapshot?.name || '';
+});
+
+// Pre-validate hook to seamlessly normalize string addresses into embedded documents
+orderSchema.pre('validate', function (next) {
+  const parseAddr = (val) => {
+    if (!val) return { street: 'Main Street', city: 'Chennai', state: 'Tamil Nadu', postalCode: '600001', country: 'India' };
+    if (typeof val === 'string') {
+      const parts = val.split(',').map((s) => s.trim()).filter(Boolean);
+      const postal = (val.match(/\b\d{6}\b/) || ['600001'])[0];
+      return {
+        street: parts[0] || val,
+        city: parts[1] || 'Chennai',
+        state: parts[2] || 'Tamil Nadu',
+        postalCode: postal,
+        country: 'India'
+      };
+    }
+    return val;
+  };
+
+  if (typeof this.shippingAddress === 'string') {
+    this.shippingAddress = parseAddr(this.shippingAddress);
+  }
+  if (typeof this.billingAddress === 'string') {
+    this.billingAddress = parseAddr(this.billingAddress);
+  }
+  next();
 });
 
 // Auto-generate Order Number (e.g. ORD-2611-7392)

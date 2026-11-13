@@ -4,12 +4,20 @@ const createTaskSchema = z.object({
   body: z.object({
     title: z.string({ required_error: 'Task title is required' }).min(3).max(150).trim(),
     description: z.string().trim().optional(),
-    assignedTo: z.string({ required_error: 'Assigned user ID is required' }).regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID'),
+    assignedTo: z.string().optional(),
     customer: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
     order: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
-    priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).default('MEDIUM'),
-    status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED']).default('TODO'),
-    dueDate: z.coerce.date().optional()
+    priority: z.string().optional().default('MEDIUM'),
+    status: z.string().optional().default('TODO'),
+    dueDate: z.any().optional()
+  }).transform((b) => {
+    let stat = (b.status || 'TODO').toUpperCase().replace('-', '_');
+    if (stat === 'TO_DO') stat = 'TODO';
+    return {
+      ...b,
+      priority: (b.priority || 'MEDIUM').toUpperCase(),
+      status: stat
+    };
   })
 });
 

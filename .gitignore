@@ -18,7 +18,10 @@ build/
 .env.production.local
 !.env.example
 
-# Logs
+# Database Local Storage
+data/
+backend/data/
+*.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

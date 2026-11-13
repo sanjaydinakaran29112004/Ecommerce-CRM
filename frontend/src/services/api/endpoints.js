@@ -110,6 +110,7 @@ export const ENDPOINTS = {
     APPROVE: (id) => `/returns/${id}/approve`,
     INSPECT: (id) => `/returns/${id}/inspect`,
     REFUND: (id) => `/returns/${id}/refund`,
+    REJECT: (id) => `/returns/${id}/reject`,
   },
 
   // Reports
@@ -127,5 +128,13 @@ export const ENDPOINTS = {
     COMPANY: '/settings/company',
     ROLES: '/settings/roles',
     AUDIT_LOGS: '/audit-logs',
+  },
+
+  // Users & Staff
+  USERS: {
+    LIST: '/users',
+    CREATE: '/users',
+    UPDATE_STATUS: (id) => `/users/${id}/status`,
+    UPDATE_ROLE: (id) => `/users/${id}/role`,
   },
 };

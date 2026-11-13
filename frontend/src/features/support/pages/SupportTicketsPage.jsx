@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { axiosClient } from '@/services/api/axiosClient';
 import { ENDPOINTS } from '@/services/api/endpoints';
@@ -13,6 +14,7 @@ import { mockDb } from '@/services/mock/mockDb';
 import { MessageSquare, Send, Plus, User, Mail } from 'lucide-react';
 
 export function SupportTicketsPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [replyText, setReplyText] = useState('');
@@ -36,25 +38,30 @@ export function SupportTicketsPage() {
 
   const sendReplyMutation = useMutation({
     mutationFn: async ({ ticketId, text }) => {
-      const existing = mockDb.get('tickets');
-      const updated = existing.map((t) => {
-        if (t.id === ticketId) {
-          const newMsg = {
-            id: `msg_${Date.now()}`,
-            sender: 'AGENT',
-            name: 'Priya Sundaram',
-            text,
-            createdAt: new Date().toISOString(),
-          };
-          return { ...t, messages: [...t.messages, newMsg], status: 'WAITING' };
-        }
-        return t;
-      });
-      mockDb.set('tickets', updated);
+      try {
+        await axiosClient.post(ENDPOINTS.TICKETS.MESSAGES(ticketId), { message: text });
+      } catch (err) {
+        console.warn('Reply save fallback:', err.message);
+        const existing = mockDb.get('tickets') || [];
+        const updated = existing.map((t) => {
+          if (t.id === ticketId || t._id === ticketId) {
+            const newMsg = {
+              id: `msg_${Date.now()}`,
+              sender: 'AGENT',
+              name: 'Priya Sundaram',
+              text,
+              createdAt: new Date().toISOString(),
+            };
+            return { ...t, messages: [...(t.messages || []), newMsg], status: 'WAITING' };
+          }
+          return t;
+        });
+        mockDb.set('tickets', updated);
+      }
       return { ticketId, text };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['tickets-list']);
+      queryClient.invalidateQueries({ queryKey: ['tickets-list'] });
       if (selectedTicket) {
         setSelectedTicket((prev) => ({
           ...prev,
@@ -76,37 +83,52 @@ export function SupportTicketsPage() {
 
   const createTicketMutation = useMutation({
     mutationFn: async (ticketData) => {
-      const existing = mockDb.get('tickets');
-      const ticketEntry = {
-        id: `tkt_${Date.now()}`,
-        ticketNumber: `TKT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        customer: {
-          id: `cust_${Date.now()}`,
-          name: ticketData.customerName,
-          email: ticketData.customerEmail,
-        },
-        orderNumber: ticketData.orderNumber || 'None',
-        subject: ticketData.subject,
-        category: ticketData.category,
-        priority: ticketData.priority,
-        status: 'OPEN',
-        assignee: 'Priya Sundaram',
-        createdAt: new Date().toISOString(),
-        messages: [
-          {
-            id: `msg_${Date.now()}`,
-            sender: 'CUSTOMER',
+      try {
+        const payload = {
+          customerName: ticketData.customerName,
+          customerEmail: ticketData.customerEmail,
+          order: ticketData.orderNumber,
+          subject: ticketData.subject,
+          description: ticketData.initialMessage || ticketData.subject,
+          category: ticketData.category || 'GENERAL_ENQUIRY',
+          priority: ticketData.priority || 'MEDIUM',
+        };
+        const res = await axiosClient.post(ENDPOINTS.TICKETS.CREATE, payload);
+        return res.ticket || res;
+      } catch (err) {
+        console.warn('Ticket creation offline fallback:', err.message);
+        const existing = mockDb.get('tickets') || [];
+        const ticketEntry = {
+          id: `tkt_${Date.now()}`,
+          ticketNumber: `TKT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          customer: {
+            id: `cust_${Date.now()}`,
             name: ticketData.customerName,
-            text: ticketData.initialMessage || ticketData.subject,
-            createdAt: new Date().toISOString(),
+            email: ticketData.customerEmail,
           },
-        ],
-      };
-      mockDb.set('tickets', [ticketEntry, ...existing]);
-      return ticketEntry;
+          orderNumber: ticketData.orderNumber || 'None',
+          subject: ticketData.subject,
+          category: ticketData.category,
+          priority: ticketData.priority,
+          status: 'OPEN',
+          assignee: 'Priya Sundaram',
+          createdAt: new Date().toISOString(),
+          messages: [
+            {
+              id: `msg_${Date.now()}`,
+              sender: 'CUSTOMER',
+              name: ticketData.customerName,
+              text: ticketData.initialMessage || ticketData.subject,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        };
+        mockDb.set('tickets', [ticketEntry, ...existing]);
+        return ticketEntry;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['tickets-list']);
+      queryClient.invalidateQueries({ queryKey: ['tickets-list'] });
       setIsCreateModalOpen(false);
       setNewTicket({
         customerName: '',
@@ -123,7 +145,7 @@ export function SupportTicketsPage() {
   const handleSendReply = (e) => {
     e.preventDefault();
     if (replyText.trim() && selectedTicket) {
-      sendReplyMutation.mutate({ ticketId: selectedTicket.id, text: replyText });
+      sendReplyMutation.mutate({ ticketId: selectedTicket.id || selectedTicket._id, text: replyText });
     }
   };
 
@@ -157,12 +179,19 @@ export function SupportTicketsPage() {
     {
       header: 'Customer',
       accessor: 'customer',
-      render: (cust) => (
-        <div>
-          <div className="font-semibold text-slate-900">{cust.name}</div>
-          <div className="text-[10px] text-slate-400">{cust.email}</div>
-        </div>
-      ),
+      render: (cust) => {
+        const name =
+          typeof cust === 'object' && cust !== null
+            ? cust.name || `${cust.firstName || ''} ${cust.lastName || ''}`.trim() || cust.email || 'Customer'
+            : cust || 'Customer';
+        const email = typeof cust === 'object' && cust !== null ? cust.email : '';
+        return (
+          <div>
+            <div className="font-semibold text-slate-900">{name}</div>
+            {email && <div className="text-[10px] text-slate-400">{email}</div>}
+          </div>
+        );
+      },
     },
     {
       header: 'Subject',
@@ -182,7 +211,14 @@ export function SupportTicketsPage() {
     {
       header: 'Assignee',
       accessor: 'assignee',
-      render: (val) => <span className="font-medium text-slate-700 text-xs">{val}</span>,
+      render: (val, row) => {
+        const staff = val || row.assignedTo || row.assignee;
+        const name =
+          typeof staff === 'object' && staff !== null
+            ? `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || staff.email || 'Priya Sundaram'
+            : staff || 'Priya Sundaram';
+        return <span className="font-medium text-slate-700 text-xs">{name}</span>;
+      },
     },
     {
       header: 'Action',
@@ -228,7 +264,7 @@ export function SupportTicketsPage() {
 
       <DataTable
         columns={columns}
-        data={tickets}
+        data={Array.isArray(tickets) ? tickets : tickets?.tickets || []}
         isLoading={isLoading}
         onRowClick={(row) => setSelectedTicket(row)}
       />
@@ -348,6 +384,22 @@ export function SupportTicketsPage() {
                 <span className="font-semibold text-slate-800">{selectedTicket.customer.name}</span>
               </div>
               <StatusChip status={selectedTicket.status} type="ticket" />
+            </div>
+
+            {/* Quick Action: Process Return or Refund */}
+            <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg flex items-center justify-between gap-2 text-xs">
+              <div>
+                <span className="font-bold text-amber-900 block text-[11px]">Return & Refund Request Escalation</span>
+                <span className="text-amber-700 text-[10px]">Open Returns module to inspect device & execute Razorpay refund</span>
+              </div>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => navigate('/returns')}
+                className="bg-white text-amber-900 border-amber-300 hover:bg-amber-100 shrink-0 text-xs py-1"
+              >
+                Go to Returns ➔
+              </Button>
             </div>
 
             {/* Conversation Feed */}

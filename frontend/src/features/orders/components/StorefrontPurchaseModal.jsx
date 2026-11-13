@@ -97,7 +97,7 @@ export function StorefrontPurchaseModal({ isOpen, onClose, onOrderPlaced }) {
       },
       orderStatus: isCod ? 'CONFIRMED' : 'PLACED',
       paymentStatus: 'PENDING',
-      paymentMethod: isCod ? 'Cash on Delivery' : 'UPI (Razorpay)',
+      paymentMethod: isCod ? 'Cash on Delivery' : 'Razorpay / Stripe Online Gateway',
       shippingAddress: customer.address,
       placedAt: new Date().toISOString(),
       deliveredAt: null,

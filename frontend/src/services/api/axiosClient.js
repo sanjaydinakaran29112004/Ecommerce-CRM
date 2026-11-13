@@ -36,7 +36,34 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => {
     // Return standard payload envelope
-    return response.data?.data !== undefined ? response.data.data : response.data;
+    const payload = response.data?.data !== undefined ? response.data.data : response.data;
+
+    // If payload is an object wrapping a primary collection array (e.g. { customers: [...] }),
+    // expose the array directly while preserving metadata
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      const collectionKeys = [
+        'customers',
+        'orders',
+        'products',
+        'leads',
+        'tickets',
+        'campaigns',
+        'tasks',
+        'users',
+        'movements',
+        'returns',
+      ];
+      for (const key of collectionKeys) {
+        if (Array.isArray(payload[key])) {
+          const arr = payload[key];
+          arr.meta = payload.meta || response.data?.meta;
+          arr.raw = payload;
+          return arr;
+        }
+      }
+    }
+
+    return payload;
   },
   async (error) => {
     const originalRequest = error.config;

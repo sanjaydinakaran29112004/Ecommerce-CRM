@@ -71,7 +71,18 @@ export async function handleMockRequest(config) {
       };
     }
 
-    const assignedRole = payload.role || ROLES.SALES_EMPLOYEE;
+    // Enforce Admin-only self registration. Staff accounts must be created inside portal.
+    if (payload.role && payload.role !== ROLES.SUPER_ADMIN && payload.role !== ROLES.ADMIN) {
+      return {
+        status: 403,
+        data: {
+          success: false,
+          message: 'Staff employees cannot self-register. Accounts must be provisioned by an Admin or Super Admin.',
+        }
+      };
+    }
+
+    const assignedRole = payload.role || ROLES.ADMIN;
     const newUser = {
       id: `usr_${Date.now()}`,
       name: payload.name,

@@ -102,15 +102,17 @@ export const SEED_CUSTOMERS = [
   {
     id: 'cust_105',
     customerCode: 'CUST-00105',
-    firstName: 'Sneha',
-    lastName: 'Reddy',
-    email: 'sneha.reddy@gmail.com',
-    phone: '+91 99663 44556',
+    firstName: 'Suresh',
+    lastName: 'Kumar',
+    email: 'suresh.kumar@example.com',
+    phone: '+91 94441 55667',
     customerType: 'INACTIVE',
     source: 'Website Organic',
-    totalSpent: 4200,
-    ordersCount: 1,
+    totalSpent: 14200,
+    ordersCount: 2,
     status: 'INACTIVE',
+    lastOrderDate: '2025-08-14T10:00:00Z',
+    lastActiveAt: '2025-08-14T10:00:00Z',
     addresses: [
       {
         type: 'SHIPPING',

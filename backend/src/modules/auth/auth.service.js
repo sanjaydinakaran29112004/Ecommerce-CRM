@@ -3,18 +3,48 @@ const User = require('../users/user.model');
 const ApiError = require('../../utils/apiError');
 const STATUS_CODES = require('../../constants/statusCodes');
 const config = require('../../config/env');
+const { ROLES } = require('../../constants/roles.constant');
+const { PERMISSIONS, ROLE_DEFAULT_PERMISSIONS } = require('../../constants/permissions.constant');
+
+const computeUserPermissions = (user) => {
+  const base = ROLE_DEFAULT_PERMISSIONS[user.role] || [];
+  const list = user.role === ROLES.SUPER_ADMIN
+    ? Object.values(PERMISSIONS)
+    : [...new Set([...base, ...(user.customPermissions || [])])];
+  const set = new Set();
+  list.forEach((p) => {
+    set.add(p);
+    set.add(p.replace(':', '.'));
+    set.add(p.replace('.', ':'));
+  });
+  return Array.from(set);
+};
 
 class AuthService {
   /**
-   * Register a new user/employee
+   * Register a new user/employee (Strictly restricted to Admin/Super Admin only)
    */
   async register(userData) {
-    const existingUser = await User.findOne({ email: userData.email });
+    // Only Super Admin and Admin can be registered publicly.
+    // General staff employees MUST be provisioned by Admin in the Employees module.
+    if (userData.role && userData.role !== ROLES.SUPER_ADMIN && userData.role !== ROLES.ADMIN) {
+      throw new ApiError(
+        STATUS_CODES.FORBIDDEN,
+        'Staff employees cannot self-register. Please contact Super Admin or Admin to create your account in the Employees portal.'
+      );
+    }
+
+    const cleanEmail = (userData.email || '').toLowerCase().trim();
+    const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
       throw new ApiError(STATUS_CODES.CONFLICT, 'An account with this email already exists');
     }
 
-    const user = await User.create(userData);
+    const user = await User.create({
+      ...userData,
+      email: cleanEmail,
+      role: userData.role || ROLES.ADMIN
+    });
 
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
@@ -23,10 +53,15 @@ class AuthService {
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
 
-    // Exclude sensitive fields from output
+    // Exclude sensitive fields from output and ensure name and avatar are attached
     const userJson = user.toObject();
     delete userJson.password;
     delete userJson.refreshToken;
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    userJson.name = fullName;
+    userJson.fullName = fullName;
+    userJson.avatar = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=4f46e5&color=fff&bold=true`;
+    userJson.permissions = computeUserPermissions(user);
 
     return { user: userJson, accessToken, refreshToken };
   }
@@ -39,13 +74,11 @@ class AuthService {
     // Explicitly query password which has select: false
     let user = await User.findOne({ email: cleanEmail }).select('+password +refreshToken');
 
-    // On-the-fly bootstrapping for the 4 official enterprise accounts if database is fresh
+    // On-the-fly bootstrapping for Super Admin and Admin leadership accounts if fresh
     if (!user) {
       const defaultAccounts = {
         'sanjay@entrykode.com': { firstName: 'Sanjay', lastName: 'D', password: 'superadmin@123', role: 'SUPER_ADMIN' },
         'ishwarya@entrykode.com': { firstName: 'Ishwarya', lastName: 'R', password: 'admin@123', role: 'ADMIN' },
-        'karthik@entrykode.com': { firstName: 'Karthik', lastName: 'Raja', password: 'sales@123', role: 'SALES_EMPLOYEE' },
-        'priya@entrykode.com': { firstName: 'Priya', lastName: 'Sundaram', password: 'support@123', role: 'SUPPORT_EMPLOYEE' },
       };
       const def = defaultAccounts[cleanEmail];
       if (def && def.password === password) {
@@ -85,6 +118,11 @@ class AuthService {
     const userJson = user.toObject();
     delete userJson.password;
     delete userJson.refreshToken;
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+    userJson.name = fullName;
+    userJson.fullName = fullName;
+    userJson.avatar = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=4f46e5&color=fff&bold=true`;
+    userJson.permissions = computeUserPermissions(user);
 
     return { user: userJson, accessToken, refreshToken };
   }

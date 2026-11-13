@@ -4,8 +4,14 @@ const STATUS_CODES = require('../../constants/statusCodes');
 
 class TaskService {
   async createTask(taskData, user) {
+    const mongoose = require('mongoose');
+    let assignedTo = user._id;
+    if (taskData.assignedTo && mongoose.Types.ObjectId.isValid(taskData.assignedTo)) {
+      assignedTo = taskData.assignedTo;
+    }
     const task = await Task.create({
       ...taskData,
+      assignedTo,
       createdBy: user._id
     });
     return task;
@@ -45,8 +51,17 @@ class TaskService {
 
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const formattedTasks = tasks.map((t) => ({
+      ...t,
+      id: t._id?.toString() || t.id,
+      assignedTo: t.assignedTo?.firstName
+        ? `${t.assignedTo.firstName} ${t.assignedTo.lastName || ''}`.trim()
+        : (typeof t.assignedTo === 'string' ? t.assignedTo : 'Staff Member'),
+      completed: t.status === 'COMPLETED'
+    }));
+
     return {
-      tasks,
+      tasks: formattedTasks,
       meta: {
         page,
         limit,
@@ -75,9 +90,11 @@ class TaskService {
   async updateTask(id, updateData, user) {
     if (updateData.status === 'COMPLETED' && !updateData.completedAt) {
       updateData.completedAt = new Date();
+    } else if (updateData.status && updateData.status !== 'COMPLETED') {
+      updateData.completedAt = null;
     }
 
-    const task = await Task.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: true })
+    const task = await Task.findByIdAndUpdate(id, { $set: updateData }, { new: true, runValidators: false })
       .populate('assignedTo', 'firstName lastName email role');
 
     if (!task) {

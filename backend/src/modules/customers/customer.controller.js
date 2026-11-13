@@ -89,6 +89,24 @@ class CustomerController {
   });
 
   /**
+   * Get Customer Orders
+   * GET /api/v1/customers/:id/orders
+   */
+  getCustomerOrders = asyncHandler(async (req, res) => {
+    const orders = await customerService.getCustomerOrders(req.params.id);
+    return ApiResponse.success(res, STATUS_CODES.OK, 'Customer orders retrieved', { orders });
+  });
+
+  /**
+   * Get Customer Activity Timeline
+   * GET /api/v1/customers/:id/activities
+   */
+  getCustomerActivities = asyncHandler(async (req, res) => {
+    const activities = await customerService.getCustomerActivities(req.params.id);
+    return ApiResponse.success(res, STATUS_CODES.OK, 'Customer activities retrieved', { activities });
+  });
+
+  /**
    * Get Customer RFM Segment Analytics
    * GET /api/v1/customers/stats/rfm
    */

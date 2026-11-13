@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { storage } from '@/utils/storage';
+import { ENDPOINTS } from '@/services/api/endpoints';
+import { axiosClient } from '@/services/api/axiosClient';
 import { CheckCircle2, Save } from 'lucide-react';
 
 const INITIAL_AUDIT_LOGS = [
@@ -44,9 +47,26 @@ export function SettingsPage() {
     });
   });
 
-  const [auditLogs, setAuditLogs] = useState(() => {
+  const { data: remoteLogs } = useQuery({
+    queryKey: ['audit-logs-list'],
+    queryFn: async () => {
+      try {
+        const res = await axiosClient.get(ENDPOINTS.SETTINGS.AUDIT_LOGS);
+        const list = Array.isArray(res) ? res : res?.logs || res?.data?.logs || [];
+        if (list.length > 0) return list;
+      } catch (err) {
+        console.warn('API audit logs fetch fallback:', err);
+      }
+      return storage.get('crm_audit_logs', INITIAL_AUDIT_LOGS);
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const [localAuditLogs, setLocalAuditLogs] = useState(() => {
     return storage.get('crm_audit_logs', INITIAL_AUDIT_LOGS);
   });
+
+  const auditLogs = remoteLogs && remoteLogs.length > 0 ? remoteLogs : localAuditLogs;
 
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -65,7 +85,7 @@ export function SettingsPage() {
     };
 
     const updatedLogs = [newLog, ...auditLogs];
-    setAuditLogs(updatedLogs);
+    setLocalAuditLogs(updatedLogs);
     storage.set('crm_audit_logs', updatedLogs);
 
     setSaveSuccess(true);
@@ -194,7 +214,7 @@ export function SettingsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {auditLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr key={log.id || log._id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 px-4 font-semibold text-slate-900">{log.actor}</td>
                   <td className="py-3 px-4 font-mono font-semibold text-brand-600 text-[11px]">{log.action}</td>
                   <td className="py-3 px-4 font-medium text-slate-800">{log.entity}</td>

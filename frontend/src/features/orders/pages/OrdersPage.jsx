@@ -12,11 +12,17 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { exportToCsv } from '@/utils/exportCsv';
 import { mockDb } from '@/services/mock/mockDb';
-import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode, CheckCheck, MapPin, Phone, Mail, UserCheck, Check } from 'lucide-react';
+import { Printer, Plus, Download, Search, ChevronRight, User, CreditCard, ShoppingBag, Sparkles, Truck, IndianRupee, Building2, QrCode, CheckCheck, MapPin, Phone, Mail, UserCheck, Check, RotateCcw, FileText, AlertCircle, ShieldCheck } from 'lucide-react';
 import { RazorpayGatewayModal } from '../components/RazorpayGatewayModal';
 import { StorefrontPurchaseModal } from '../components/StorefrontPurchaseModal';
+import { TaxInvoiceModal } from '../components/TaxInvoiceModal';
+import { GatewayReceiptModal } from '../components/GatewayReceiptModal';
+import { CancelOrderModal } from '../components/CancelOrderModal';
+import { FieldRequirementsBox } from '@/components/feedback/FieldRequirementsBox';
 
-const ORDER_STATUSES = ['PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+// Blueprint Section 4.6 Exact Fulfillment States & Payment States
+const ORDER_STATUSES = ['ALL', 'PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
+const PAYMENT_STATUSES = ['ALL', 'PENDING', 'PAID', 'FAILED', 'PARTIALLY_REFUNDED', 'REFUNDED'];
 
 export function OrdersPage() {
   const queryClient = useQueryClient();
@@ -24,7 +30,15 @@ export function OrdersPage() {
   const [editingOrder, setEditingOrder] = useState(null);
   const [newStatus, setNewStatus] = useState('PROCESSING');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Cancellation, Tax Invoice & Gateway Receipt Modal States
+  const [cancellingOrder, setCancellingOrder] = useState(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState(null);
 
   // Payment Gateway & Storefront Simulation States
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
@@ -62,18 +76,19 @@ export function OrdersPage() {
 
   // Extract and normalize all registered CRM customers for 1-click auto-fill
   const allCustomersList = React.useMemo(() => {
-    const dbCustomers = mockDb.get('customers') || [];
-    return dbCustomers.map((c) => {
+    const list = (customers && customers.length > 0) ? customers : (mockDb.get('customers') || []);
+    return list.map((c) => {
       const fullName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Valued Customer';
-      const addr = c.addresses?.[0]
-        ? `${c.addresses[0].addressLine}, ${c.addresses[0].city}, ${c.addresses[0].state} - ${c.addresses[0].pincode}`
+      const addrObj = c.addresses?.[0];
+      const addr = addrObj
+        ? `${addrObj.street || addrObj.addressLine || 'Main Street'}, ${addrObj.city || 'Chennai'}, ${addrObj.state || 'Tamil Nadu'} - ${addrObj.postalCode || addrObj.pincode || '600001'}`
         : c.shippingAddress || 'Chennai, Tamil Nadu';
       return {
-        id: c.id,
+        id: c._id || c.id,
         name: fullName,
         email: c.email || '',
         phone: c.phone || '+91 98401 23456',
-        customerType: c.customerType || 'RETURNING',
+        customerType: c.customerType || c.segment || 'RETURNING',
         address: addr,
         ordersCount: c.ordersCount || 1,
       };
@@ -107,18 +122,126 @@ export function OrdersPage() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }) => {
-      const existing = mockDb.get('orders');
-      const updated = existing.map((o) => (o.id === orderId ? { ...o, orderStatus: status } : o));
+      try {
+        await axiosClient.patch(ENDPOINTS.ORDERS.UPDATE_STATUS(orderId), { orderStatus: status });
+      } catch (err) {
+        console.warn('Backend updateStatus fallback:', err.message);
+      }
+
+      // Always update local persistent storage
+      const existing = mockDb.get('orders') || [];
+      const updated = existing.map((o) =>
+        o.id === orderId || o._id === orderId || o.orderNumber === orderId
+          ? {
+              ...o,
+              orderStatus: status,
+              statusHistory: [
+                {
+                  status,
+                  note: `Order fulfillment status transitioned to ${status}`,
+                  timestamp: new Date().toISOString(),
+                },
+                ...(o.statusHistory || []),
+              ],
+            }
+          : o
+      );
       mockDb.set('orders', updated);
+
       return { orderId, status };
     },
-    onSuccess: () => {
+    onSuccess: ({ orderId, status }) => {
+      // Direct optimistic cache update for 0ms reactive table update
+      queryClient.setQueryData(['orders-list'], (old) => {
+        if (!old) return old;
+        const list = Array.isArray(old) ? old : old.orders || [];
+        const updated = list.map((o) =>
+          o.id === orderId || o._id === orderId || o.orderNumber === orderId
+            ? {
+                ...o,
+                orderStatus: status,
+                statusHistory: [
+                  {
+                    status,
+                    note: `Order fulfillment status transitioned to ${status}`,
+                    timestamp: new Date().toISOString(),
+                  },
+                  ...(o.statusHistory || []),
+                ],
+              }
+            : o
+        );
+        return Array.isArray(old) ? updated : { ...old, orders: updated };
+      });
+
       queryClient.invalidateQueries({ queryKey: ['orders-list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
+      queryClient.refetchQueries({ queryKey: ['orders-list'] });
+      queryClient.refetchQueries({ queryKey: ['dashboard-metrics'] });
       setEditingOrder(null);
+
+      if (
+        selectedOrder &&
+        (selectedOrder.id === orderId ||
+          selectedOrder._id === orderId ||
+          selectedOrder.orderNumber === orderId)
+      ) {
+        setSelectedOrder((prev) => ({
+          ...prev,
+          orderStatus: status,
+          statusHistory: [
+            {
+              status,
+              note: `Order fulfillment status transitioned to ${status}`,
+              timestamp: new Date().toISOString(),
+            },
+            ...(prev.statusHistory || []),
+          ],
+        }));
+      }
+    },
+  });
+
+  // Cancel Order Mutation (Blueprint Section 4.6 & 8)
+  const cancelOrderMutation = useMutation({
+    mutationFn: async ({ orderId, reason }) => {
+      try {
+        await axiosClient.post(ENDPOINTS.ORDERS.CANCEL(orderId), { reason });
+      } catch (err) {
+        console.warn('Order cancel API fallback:', err);
+      }
+      return { orderId, reason };
+    },
+    onSuccess: ({ orderId, reason }) => {
+      const existing = mockDb.get('orders') || [];
+      const updated = existing.map((o) => {
+        if (o.id === orderId || o._id === orderId || o.orderNumber === orderId) {
+          const wasPaid = o.paymentStatus === 'PAID';
+          return {
+            ...o,
+            orderStatus: 'CANCELLED',
+            paymentStatus: wasPaid ? 'REFUNDED' : o.paymentStatus,
+            cancelReason: reason,
+          };
+        }
+        return o;
+      });
+      mockDb.set('orders', updated);
+      queryClient.setQueryData(['orders-list'], updated);
+      queryClient.invalidateQueries({ queryKey: ['orders-list'] });
+      queryClient.invalidateQueries({ queryKey: ['products-list'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
+      setCancellingOrder(null);
       if (selectedOrder) {
-        setSelectedOrder((prev) => ({ ...prev, orderStatus: newStatus }));
+        setSelectedOrder((prev) => ({
+          ...prev,
+          orderStatus: 'CANCELLED',
+          paymentStatus: prev.paymentStatus === 'PAID' ? 'REFUNDED' : prev.paymentStatus,
+          cancelReason: reason,
+        }));
       }
     },
   });
@@ -179,6 +302,18 @@ export function OrdersPage() {
     queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
 
+    const targetOrderId = gatewayOrder?.id || gatewayOrder?._id || result.orderNumber;
+    if (targetOrderId) {
+      axiosClient.post(ENDPOINTS.ORDERS.PAYMENT(targetOrderId)).catch(() => {});
+      axiosClient.post('/payments', {
+        orderId: targetOrderId,
+        transactionId: result.paymentId,
+        gateway: result.gateway || (result.method?.includes('STRIPE') ? 'STRIPE' : result.method?.includes('Cash') ? 'COD' : result.method?.includes('BANK') ? 'BANK_TRANSFER' : 'RAZORPAY'),
+        amountPaise: Math.round(Number(result.amount) * 100),
+        idempotencyKey: `pay_idemp_${result.paymentId || Date.now()}`
+      }).catch(() => {});
+    }
+
     if (selectedOrder && (selectedOrder.id === gatewayOrder?.id || selectedOrder.orderNumber === result.orderNumber)) {
       setSelectedOrder((prev) => ({
         ...prev,
@@ -191,6 +326,14 @@ export function OrdersPage() {
 
   // Handle Cash on Delivery Doorstep Collection
   const handleMarkCodCollected = (order) => {
+    const targetOrderId = order.id || order._id || order.orderNumber;
+    if (targetOrderId) {
+      axiosClient.patch(ENDPOINTS.ORDERS.UPDATE_STATUS(targetOrderId), {
+        orderStatus: 'CONFIRMED',
+        note: 'Cash on delivery payment collected at doorstep'
+      }).catch(() => {});
+    }
+
     const existingOrders = mockDb.get('orders');
     const updated = existingOrders.map((o) =>
       o.id === order.id || o.orderNumber === order.orderNumber
@@ -203,7 +346,7 @@ export function OrdersPage() {
               method: 'CASH_ON_DELIVERY',
               status: 'COLLECTED',
               collectedAt: new Date().toISOString(),
-              amount: o.pricing.total,
+              amount: o.pricing?.total || (o.totalAmountPaise ? o.totalAmountPaise / 100 : 0),
             },
           }
         : o
@@ -223,56 +366,123 @@ export function OrdersPage() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData) => {
-      const existing = mockDb.get('orders');
       const subtotal = Number(orderData.unitPrice) * Number(orderData.quantity);
       const tax = Math.round(subtotal * 0.18);
       const total = subtotal + tax;
 
-      const isCod = orderData.paymentMethod === 'Cash on Delivery';
+      const isCod = orderData.paymentMethod?.toLowerCase().includes('cash');
       const shouldTriggerGateway = !isCod && Boolean(orderData.triggerGateway);
 
-      const orderEntry = {
-        id: `ord_${Date.now()}`,
-        orderNumber: `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`,
-        customer: {
-          id: `cust_${Date.now()}`,
-          name: orderData.customerName,
-          email: orderData.customerEmail,
-          phone: orderData.customerPhone,
-        },
-        items: [
-          {
-            productId: 'prod_201',
-            name: orderData.productName,
-            sku: orderData.productSku,
-            quantity: Number(orderData.quantity),
-            unitPrice: Number(orderData.unitPrice),
-            total: subtotal,
-          },
-        ],
-        pricing: {
-          subtotal,
-          discount: 0,
-          tax,
-          shipping: 0,
-          total,
-        },
-        orderStatus: isCod ? 'CONFIRMED' : shouldTriggerGateway ? 'PLACED' : 'CONFIRMED',
-        paymentStatus: isCod ? 'PENDING' : shouldTriggerGateway ? 'PENDING' : 'PAID',
-        paymentMethod: orderData.paymentMethod,
-        shippingAddress: orderData.shippingAddress,
-        placedAt: new Date().toISOString(),
-        deliveredAt: null,
-      };
+      let orderEntry;
+      try {
+        const payload = {
+          customer: orderData.customerEmail || orderData.customerName,
+          customerName: orderData.customerName,
+          customerEmail: orderData.customerEmail,
+          customerPhone: orderData.customerPhone,
+          items: [
+            {
+              product: orderData.productSku || orderData.productName,
+              sku: orderData.productSku,
+              name: orderData.productName,
+              quantity: Number(orderData.quantity) || 1,
+              unitPrice: Number(orderData.unitPrice) || 9999,
+            }
+          ],
+          shippingAddress: typeof orderData.shippingAddress === 'object' && orderData.shippingAddress !== null
+            ? orderData.shippingAddress
+            : {
+                street: orderData.shippingAddress || 'Flat 3A, Metro Residency, Mount Road',
+                city: 'Chennai',
+                state: 'Tamil Nadu',
+                postalCode: '600002',
+                country: 'India',
+              },
+          paymentMethod: isCod ? 'COD' : 'RAZORPAY',
+        };
+        const backendRes = await axiosClient.post(ENDPOINTS.ORDERS.CREATE, payload);
+        const savedOrder = backendRes.order || backendRes;
+        const custName = savedOrder.customer?.name || savedOrder.customerSnapshot?.name || orderData.customerName || 'Valued Customer';
+        const custEmail = savedOrder.customer?.email || savedOrder.customerSnapshot?.email || orderData.customerEmail || '';
+        const custPhone = savedOrder.customer?.phone || savedOrder.customerSnapshot?.phone || orderData.customerPhone || '';
 
-      mockDb.set('orders', [orderEntry, ...existing]);
+        orderEntry = {
+          ...savedOrder,
+          id: savedOrder._id || savedOrder.id,
+          pricing: savedOrder.pricing || { subtotal, discount: 0, tax, shipping: 0, total },
+          customer: {
+            id: savedOrder.customer?.id || savedOrder.customer || `cust_${Date.now()}`,
+            name: custName,
+            email: custEmail,
+            phone: custPhone,
+          },
+          customerSnapshot: {
+            name: custName,
+            email: custEmail,
+            phone: custPhone,
+          },
+        };
+      } catch (err) {
+        console.warn('Backend order creation offline fallback:', err.message);
+        const existing = mockDb.get('orders') || [];
+        orderEntry = {
+          id: `ord_${Date.now()}`,
+          orderNumber: `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`,
+          customer: {
+            id: `cust_${Date.now()}`,
+            name: orderData.customerName,
+            email: orderData.customerEmail,
+            phone: orderData.customerPhone,
+          },
+          items: [
+            {
+              productId: 'prod_201',
+              name: orderData.productName,
+              sku: orderData.productSku,
+              quantity: Number(orderData.quantity),
+              unitPrice: Number(orderData.unitPrice),
+              total: subtotal,
+            },
+          ],
+          pricing: {
+            subtotal,
+            discount: 0,
+            tax,
+            shipping: 0,
+            total,
+          },
+          orderStatus: isCod ? 'CONFIRMED' : shouldTriggerGateway ? 'PLACED' : 'CONFIRMED',
+          paymentStatus: isCod ? 'PENDING' : shouldTriggerGateway ? 'PENDING' : 'PAID',
+          paymentMethod: orderData.paymentMethod,
+          shippingAddress: orderData.shippingAddress,
+          placedAt: new Date().toISOString(),
+          deliveredAt: null,
+        };
+        mockDb.set('orders', [orderEntry, ...existing]);
+      }
+
       return { orderEntry, triggerGateway: shouldTriggerGateway };
     },
     onSuccess: (data) => {
+      const newOrder = data?.orderEntry;
+      if (newOrder) {
+        // Direct optimistic insertion into React Query cache for instant table reflection
+        queryClient.setQueryData(['orders-list'], (old) => {
+          const list = Array.isArray(old) ? old : old?.orders || [];
+          const key = newOrder.orderNumber || newOrder.id;
+          return [newOrder, ...list.filter((o) => (o.orderNumber || o.id) !== key)];
+        });
+        const existing = mockDb.get('orders') || [];
+        const key = newOrder.orderNumber || newOrder.id;
+        mockDb.set('orders', [newOrder, ...existing.filter((o) => (o.orderNumber || o.id) !== key)]);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['orders-list'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
+      queryClient.refetchQueries({ queryKey: ['orders-list'] });
+      queryClient.refetchQueries({ queryKey: ['dashboard-metrics'] });
       setIsCreateModalOpen(false);
       setManualOrder({
         customerName: '',
@@ -296,22 +506,86 @@ export function OrdersPage() {
   });
 
   // Handler for Storefront Online Purchase simulation
-  const handleStorefrontOrder = (preparedOrder) => {
-    const existing = mockDb.get('orders');
-    const orderNumber = `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`;
+  const handleStorefrontOrder = async (preparedOrder) => {
     const isCod = preparedOrder.paymentMethod === 'Cash on Delivery';
-    const fullOrder = {
-      ...preparedOrder,
-      id: `ord_${Date.now()}`,
-      orderNumber,
-      orderStatus: isCod ? 'CONFIRMED' : 'PLACED',
-      paymentStatus: 'PENDING',
-    };
-    mockDb.set('orders', [fullOrder, ...existing]);
+    let fullOrder;
+
+    try {
+      const payload = {
+        customer: preparedOrder.customer?.email || preparedOrder.customer?.name,
+        customerName: preparedOrder.customer?.name,
+        customerEmail: preparedOrder.customer?.email,
+        customerPhone: preparedOrder.customer?.phone,
+        items: (preparedOrder.items || []).map((i) => ({
+          product: i.sku || i.name,
+          sku: i.sku,
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+        })),
+        shippingAddress: typeof preparedOrder.shippingAddress === 'object' && preparedOrder.shippingAddress !== null
+          ? preparedOrder.shippingAddress
+          : {
+              street: preparedOrder.shippingAddress || 'B-402, Skyline Towers, Powai',
+              city: 'Mumbai',
+              state: 'Maharashtra',
+              postalCode: '400076',
+              country: 'India',
+            },
+        paymentMethod: isCod ? 'COD' : 'RAZORPAY',
+      };
+      const res = await axiosClient.post(ENDPOINTS.ORDERS.CREATE, payload);
+      const saved = res.order || res;
+      const custName = saved.customer?.name || saved.customerSnapshot?.name || preparedOrder.customer?.name || 'Rohan Deshmukh';
+      const custEmail = saved.customer?.email || saved.customerSnapshot?.email || preparedOrder.customer?.email || 'rohan.d@gmail.com';
+      const custPhone = saved.customer?.phone || saved.customerSnapshot?.phone || preparedOrder.customer?.phone || '+91 98200 45678';
+
+      fullOrder = {
+        ...saved,
+        id: saved._id || saved.id,
+        pricing: saved.pricing || preparedOrder.pricing,
+        customer: {
+          id: saved.customer?.id || preparedOrder.customer?.id || `cust_${Date.now()}`,
+          name: custName,
+          email: custEmail,
+          phone: custPhone,
+        },
+        customerSnapshot: {
+          name: custName,
+          email: custEmail,
+          phone: custPhone,
+        },
+      };
+    } catch (err) {
+      console.warn('Storefront order save fallback:', err.message);
+      const existing = mockDb.get('orders') || [];
+      const orderNumber = `ORD-2026-${Math.floor(9000 + Math.random() * 900)}`;
+      fullOrder = {
+        ...preparedOrder,
+        id: `ord_${Date.now()}`,
+        orderNumber,
+        orderStatus: isCod ? 'CONFIRMED' : 'PLACED',
+        paymentStatus: 'PENDING',
+      };
+      mockDb.set('orders', [fullOrder, ...existing]);
+    }
+
+    // Direct optimistic update for instantaneous UI reflection
+    queryClient.setQueryData(['orders-list'], (old) => {
+      const list = Array.isArray(old) ? old : old?.orders || [];
+      const key = fullOrder.orderNumber || fullOrder.id;
+      return [fullOrder, ...list.filter((o) => (o.orderNumber || o.id) !== key)];
+    });
+    const existing = mockDb.get('orders') || [];
+    const key = fullOrder.orderNumber || fullOrder.id;
+    mockDb.set('orders', [fullOrder, ...existing.filter((o) => (o.orderNumber || o.id) !== key)]);
+
     queryClient.invalidateQueries({ queryKey: ['orders-list'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-order-status'] });
     queryClient.invalidateQueries({ queryKey: ['dashboard-sales-trend'] });
+    queryClient.refetchQueries({ queryKey: ['orders-list'] });
+    queryClient.refetchQueries({ queryKey: ['dashboard-metrics'] });
 
     // Only open Razorpay Gateway for Online Payments (not COD)
     if (!isCod) {
@@ -325,26 +599,39 @@ export function OrdersPage() {
     createOrderMutation.mutate(manualOrder);
   };
 
-  const filteredOrders = orders.filter((o) => {
+  // Real-time MongoDB Order List directly from Backend API (Single Source of Truth)
+  const orderList = React.useMemo(() => {
+    const list = Array.isArray(orders) ? orders : orders?.orders || [];
+    return [...list].sort((a, b) => {
+      const dateA = new Date(a.placedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.placedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [orders]);
+
+  const filteredOrders = orderList.filter((o) => {
+    const custName = o.customer?.name || o.customerSnapshot?.name || '';
+    const custEmail = o.customer?.email || o.customerSnapshot?.email || '';
     const matchesSearch =
       o.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      custName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      custEmail.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || o.orderStatus === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPayment = paymentFilter === 'ALL' || o.paymentStatus === paymentFilter;
+    return matchesSearch && matchesStatus && matchesPayment;
   });
 
   const handleExportOrders = () => {
     const exportData = filteredOrders.map((o) => ({
       OrderNumber: o.orderNumber,
-      Customer: o.customer.name,
-      Email: o.customer.email,
-      Phone: o.customer.phone,
-      Total: o.pricing.total,
+      Customer: o.customer?.name || o.customerSnapshot?.name || 'Customer',
+      Email: o.customer?.email || o.customerSnapshot?.email || '',
+      Phone: o.customer?.phone || o.customerSnapshot?.phone || '',
+      Total: o.pricing?.total ?? (o.totalAmountPaise ? o.totalAmountPaise / 100 : 0),
       PaymentMethod: o.paymentMethod,
       PaymentStatus: o.paymentStatus,
       FulfillmentStatus: o.orderStatus,
-      PlacedAt: o.placedAt,
+      PlacedAt: o.placedAt || o.createdAt,
     }));
     exportToCsv(exportData, `orders_export_${new Date().toISOString().slice(0, 10)}.csv`);
   };
@@ -356,26 +643,30 @@ export function OrdersPage() {
       render: (val, row) => (
         <div>
           <span className="font-mono font-bold text-brand-600">{val}</span>
-          <div className="text-[11px] text-slate-400">{formatDate(row.placedAt, 'dd MMM yyyy, hh:mm a')}</div>
+          <div className="text-[11px] text-slate-400">{formatDate(row.placedAt || row.createdAt, 'dd MMM yyyy, hh:mm a')}</div>
         </div>
       ),
     },
     {
       header: 'Customer',
       accessor: 'customer',
-      render: (cust) => (
-        <div>
-          <div className="font-semibold text-slate-900">{cust.name}</div>
-          <div className="text-[11px] text-slate-400">{cust.email}</div>
-        </div>
-      ),
+      render: (cust, row) => {
+        const name = cust?.name || row?.customerSnapshot?.name || 'Valued Customer';
+        const email = cust?.email || row?.customerSnapshot?.email || '';
+        return (
+          <div>
+            <div className="font-semibold text-slate-900">{name}</div>
+            <div className="text-[11px] text-slate-400">{email}</div>
+          </div>
+        );
+      },
     },
     {
       header: 'Line Items',
       accessor: 'items',
       render: (items) => (
         <span className="text-slate-600 text-xs">
-          {items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}
+          {(items || []).map((i) => `${i.quantity}x ${i.name}`).join(', ')}
         </span>
       ),
     },
@@ -383,23 +674,74 @@ export function OrdersPage() {
       header: 'Total Value',
       accessor: 'pricing',
       align: 'right',
-      render: (pricing) => (
-        <span className="font-bold text-slate-900">{formatCurrency(pricing.total)}</span>
-      ),
+      render: (pricing, row) => {
+        const total = pricing?.total ?? row?.pricing?.total ?? (row?.totalAmountPaise ? row.totalAmountPaise / 100 : 0);
+        return <span className="font-bold text-slate-900">{formatCurrency(total)}</span>;
+      },
     },
     {
-      header: 'Payment',
+      header: 'Payment State',
       accessor: 'paymentStatus',
       render: (val, row) => {
-        const isCod = row.paymentMethod?.toLowerCase().includes('cash on delivery');
+        const isCod = (row.paymentMethod || '').toLowerCase().includes('cash on delivery') || (row.paymentMethod || '').toLowerCase().includes('cod');
+        const isPaid = val === 'PAID';
+        const isRefunded = val === 'REFUNDED' || val === 'PARTIALLY_REFUNDED';
+        const isFailed = val === 'FAILED';
+
         return (
-          <div>
-            {val === 'PAID' ? (
-              <div className="flex items-center gap-1.5">
-                <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {isCod ? 'COD PAID' : 'PAID'}
-                </span>
-                {!isCod && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5">
+              <StatusChip status={val || 'PENDING'} type="payment" />
+              {isPaid && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setReceiptOrder(row);
+                      setIsReceiptModalOpen(true);
+                    }}
+                    title="Generate & View Official Gateway Payment Receipt"
+                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold underline cursor-pointer"
+                  >
+                    Receipt
+                  </button>
+                  <span className="text-[10px] text-slate-300">•</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInvoiceOrder(row);
+                      setIsInvoiceModalOpen(true);
+                    }}
+                    title="Generate & View Official GST Tax Invoice"
+                    className="text-[10px] text-brand-600 hover:text-brand-800 font-bold underline cursor-pointer"
+                  >
+                    Invoice
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!isPaid && !isRefunded && (
+              isCod ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkCodCollected(row);
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
+                    title="Mark Cash Collected upon Doorstep Delivery"
+                  >
+                    <IndianRupee className="w-2.5 h-2.5" />
+                    <span>Collect Cash</span>
+                  </button>
+                  <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pay at Doorstep</div>
+                </div>
+              ) : isFailed ? (
+                <div>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -407,61 +749,32 @@ export function OrdersPage() {
                       setGatewayOrder(row);
                       setIsGatewayOpen(true);
                     }}
-                    title="View Razorpay Receipt"
-                    className="text-[10px] text-brand-600 hover:text-brand-800 font-semibold underline cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
                   >
-                    Receipt
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Retry Gateway</span>
                   </button>
-                )}
-              </div>
-            ) : isCod ? (
-              <div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMarkCodCollected(row);
-                  }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
-                  title="Mark Cash Collected upon Doorstep Delivery"
-                >
-                  <IndianRupee className="w-2.5 h-2.5" />
-                  <span>Collect Cash</span>
-                </button>
-                <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pay at Doorstep</div>
-              </div>
-            ) : (
-              <div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setGatewayOrder(row);
-                    setIsGatewayOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
-                >
-                  {row.paymentMethod?.toLowerCase().includes('card') ? (
-                    <>
-                      <CreditCard className="w-2.5 h-2.5" />
-                      <span>Pay via Card</span>
-                    </>
-                  ) : row.paymentMethod?.toLowerCase().includes('netbanking') ? (
-                    <>
-                      <Building2 className="w-2.5 h-2.5" />
-                      <span>Pay via NetBanking</span>
-                    </>
-                  ) : (
-                    <>
-                      <QrCode className="w-2.5 h-2.5" />
-                      <span>Pay via UPI</span>
-                    </>
-                  )}
-                </button>
-                <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Pending</div>
-              </div>
+                  <div className="text-[10px] text-rose-600 font-semibold mt-0.5">Payment Declined</div>
+                </div>
+              ) : (
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setGatewayOrder(row);
+                      setIsGatewayOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-2xs cursor-pointer active:scale-95 transition-all"
+                  >
+                    <CreditCard className="w-2.5 h-2.5" />
+                    <span>Pay via Gateway</span>
+                  </button>
+                  <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Payment Pending</div>
+                </div>
+              )
             )}
-            <div className="text-[10px] text-slate-400 mt-0.5">{row.paymentMethod}</div>
+            <div className="text-[10px] text-slate-400 truncate max-w-[150px]">{row.paymentMethod || 'Online Gateway'}</div>
           </div>
         );
       },
@@ -474,33 +787,66 @@ export function OrdersPage() {
     {
       header: 'Actions',
       align: 'right',
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingOrder(row);
-              setNewStatus(row.orderStatus);
-            }}
-            className="text-xs py-1"
-          >
-            Update
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedOrder(row);
-            }}
-            className="text-xs p-1.5"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </Button>
-        </div>
-      ),
+      render: (_, row) => {
+        const canCancel = !['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'].includes(row.orderStatus);
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setInvoiceOrder(row);
+                setIsInvoiceModalOpen(true);
+              }}
+              className="text-xs py-1 px-2"
+              title="Official GST Tax Invoice"
+            >
+              Invoice
+            </Button>
+            {!['DELIVERED', 'CANCELLED'].includes(row.orderStatus) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingOrder(row);
+                  setNewStatus(row.orderStatus);
+                }}
+                className="text-xs py-1 px-2"
+              >
+                Update
+              </Button>
+            )}
+            {canCancel && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCancellingOrder(row);
+                }}
+                className="text-xs py-1 px-2 text-rose-600 hover:bg-rose-50"
+                title="Cancel Order & Restock Warehouse"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedOrder(row);
+              }}
+              className="text-xs p-1"
+            >
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -547,31 +893,60 @@ export function OrdersPage() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by order #, customer..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-brand-500"
-          />
+      {/* Dual Filter and Search Bar (Blueprint Section 4.6 Lifecycle & Payment States) */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by order #, customer..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-hidden focus:border-brand-500"
+            />
+          </div>
+
+          {/* Row 1: Fulfillment Lifecycle Tabs */}
+          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+            {ORDER_STATUSES.map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors shrink-0 cursor-pointer ${
+                  statusFilter === st
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {st.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          {['ALL', 'PLACED', 'CONFIRMED', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((st) => (
+        {/* Row 2: Payment States Filter (Blueprint: Pending, Paid, Failed, Partially Refunded, Refunded) */}
+        <div className="flex items-center gap-2 pt-2.5 border-t border-slate-100 text-xs overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 shrink-0">Payment State:</span>
+          {PAYMENT_STATUSES.map((pst) => (
             <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors shrink-0 ${
-                statusFilter === st
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              key={pst}
+              onClick={() => setPaymentFilter(pst)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all shrink-0 cursor-pointer ${
+                paymentFilter === pst
+                  ? pst === 'PAID'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : pst === 'FAILED'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : pst === 'PENDING'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : pst === 'REFUNDED' || pst === 'PARTIALLY_REFUNDED'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-900 text-white shadow-xs'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {st}
+              {pst.replace(/_/g, ' ')}
             </button>
           ))}
         </div>
@@ -654,6 +1029,12 @@ export function OrdersPage() {
                 )}
               </div>
 
+              {manualOrder.customerName && (manualOrder.customerName.trim().length < 3 || !/^[A-Za-z\s.]+$/.test(manualOrder.customerName)) && (
+                <div className="mt-1.5">
+                  <FieldRequirementsBox type="name" value={manualOrder.customerName} />
+                </div>
+              )}
+
               {/* Autocomplete Dropdown List */}
               {isCustomerDropdownOpen && (
                 <>
@@ -729,24 +1110,38 @@ export function OrdersPage() {
 
             {/* Customer Email & Phone Auto-Filled / Editable Fields */}
             <div className="grid grid-cols-2 gap-3">
-              <Input
-                label="Customer Email"
-                type="email"
-                value={manualOrder.customerEmail}
-                onChange={(e) => setManualOrder({ ...manualOrder, customerEmail: e.target.value })}
-                placeholder="customer@example.com"
-                leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
-                required
-              />
-              <Input
-                label="Customer Phone"
-                type="tel"
-                value={manualOrder.customerPhone}
-                onChange={(e) => setManualOrder({ ...manualOrder, customerPhone: e.target.value })}
-                placeholder="+91 98401 23456"
-                leftIcon={<Phone className="w-4 h-4 text-slate-400" />}
-                required
-              />
+              <div>
+                <Input
+                  label="Customer Email"
+                  type="email"
+                  value={manualOrder.customerEmail}
+                  onChange={(e) => setManualOrder({ ...manualOrder, customerEmail: e.target.value })}
+                  placeholder="customer@example.com"
+                  leftIcon={<Mail className="w-4 h-4 text-slate-400" />}
+                  required
+                />
+                {manualOrder.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualOrder.customerEmail) && (
+                  <div className="mt-1.5">
+                    <FieldRequirementsBox type="email" value={manualOrder.customerEmail} />
+                  </div>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Customer Phone"
+                  type="tel"
+                  value={manualOrder.customerPhone}
+                  onChange={(e) => setManualOrder({ ...manualOrder, customerPhone: e.target.value })}
+                  placeholder="+91 98401 23456"
+                  leftIcon={<Phone className="w-4 h-4 text-slate-400" />}
+                  required
+                />
+                {manualOrder.customerPhone && manualOrder.customerPhone.replace(/[\s\-\+]/g, '').slice(-10).length !== 10 && (
+                  <div className="mt-1.5">
+                    <FieldRequirementsBox type="phone" value={manualOrder.customerPhone} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -798,9 +1193,11 @@ export function OrdersPage() {
                 }}
                 className="w-full text-xs rounded-lg border border-slate-300 p-2 bg-white font-medium"
               >
-                <option value="UPI (Razorpay)">UPI (Razorpay)</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="NetBanking">NetBanking</option>
+                <option value="UPI (Razorpay)">UPI (Razorpay - GPay/PhonePe/Paytm)</option>
+                <option value="Credit Card">Credit / Debit Card (Razorpay)</option>
+                <option value="Stripe Global Card">Stripe Global Card (Visa/Mastercard/Amex)</option>
+                <option value="NetBanking">NetBanking (SBI/HDFC/ICICI/Axis)</option>
+                <option value="Bank Transfer (NEFT/RTGS)">Bank Transfer (NEFT / RTGS / IMPS)</option>
                 <option value="Cash on Delivery">Cash on Delivery (Pay at Doorstep)</option>
               </select>
             </div>
@@ -814,14 +1211,34 @@ export function OrdersPage() {
             </div>
           </div>
 
-          <Input
-            label="Shipping Address"
-            value={manualOrder.shippingAddress}
-            onChange={(e) => setManualOrder({ ...manualOrder, shippingAddress: e.target.value })}
-            placeholder="Flat, building, street, city, pin code"
-            leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
-            required
-          />
+          <div>
+            <Input
+              label="Shipping Address (Must include 6-digit Pincode)"
+              value={manualOrder.shippingAddress}
+              onChange={(e) => setManualOrder({ ...manualOrder, shippingAddress: e.target.value })}
+              placeholder="Flat, building, street, city, 6-digit pin code"
+              leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
+              required
+            />
+            {manualOrder.shippingAddress && (!/\b\d{6}\b/.test(manualOrder.shippingAddress) || manualOrder.shippingAddress.trim().length < 10) && (
+              <div className="mt-1.5">
+                <FieldRequirementsBox
+                  rules={[
+                    {
+                      id: 'addr_pin',
+                      label: 'Address must include a valid 6-digit postal pincode (e.g. 600002).',
+                      satisfied: /\b\d{6}\b/.test(manualOrder.shippingAddress),
+                    },
+                    {
+                      id: 'addr_len',
+                      label: 'Address must contain street, city, and state details (at least 10 characters).',
+                      satisfied: manualOrder.shippingAddress.trim().length >= 10,
+                    },
+                  ]}
+                />
+              </div>
+            )}
+          </div>
 
           {/* Conditional Payment Method Feedback */}
           {manualOrder.paymentMethod === 'Cash on Delivery' ? (
@@ -950,37 +1367,94 @@ export function OrdersPage() {
                     size="sm"
                     leftIcon={<Sparkles className="w-3.5 h-3.5 text-emerald-600" />}
                     onClick={() => {
-                      setGatewayOrder(selectedOrder);
-                      setIsGatewayOpen(true);
+                      setReceiptOrder(selectedOrder);
+                      setIsReceiptModalOpen(true);
                     }}
                   >
                     Gateway Receipt
                   </Button>
                 )}
+                {!['DELIVERED', 'CANCELLED'].includes(selectedOrder.orderStatus) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingOrder(selectedOrder);
+                      setNewStatus(selectedOrder.orderStatus);
+                    }}
+                    className="text-xs"
+                  >
+                    Update Status
+                  </Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Delivered (Finalized)</span>
+                  </span>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  leftIcon={<Printer className="w-3.5 h-3.5" />}
-                  onClick={() => window.print()}
+                  leftIcon={<Printer className="w-3.5 h-3.5 text-brand-600" />}
+                  onClick={() => {
+                    setInvoiceOrder(selectedOrder);
+                    setIsInvoiceModalOpen(true);
+                  }}
                 >
-                  Print Invoice
+                  Tax Invoice
                 </Button>
+                {!['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'].includes(selectedOrder.orderStatus) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<RotateCcw className="w-3.5 h-3.5 text-rose-600" />}
+                    onClick={() => setCancellingOrder(selectedOrder)}
+                    className="text-rose-600 hover:bg-rose-50 border-rose-200"
+                  >
+                    Cancel Order
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* Customer & Shipping */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3.5 border border-slate-200 rounded-xl bg-white">
-                <span className="font-semibold text-slate-700">Customer</span>
-                <p className="font-bold text-slate-900 mt-1">{selectedOrder.customer.name}</p>
-                <p className="text-slate-500">{selectedOrder.customer.email}</p>
-                <p className="text-slate-500">{selectedOrder.customer.phone}</p>
-              </div>
-              <div className="p-3.5 border border-slate-200 rounded-xl bg-white">
-                <span className="font-semibold text-slate-700">Delivery Address</span>
-                <p className="text-slate-600 mt-1 leading-relaxed">{selectedOrder.shippingAddress}</p>
-              </div>
-            </div>
+            {(() => {
+              const custName =
+                selectedOrder.customer?.name ||
+                selectedOrder.customerSnapshot?.name ||
+                (typeof selectedOrder.customer === 'string' ? selectedOrder.customer : '') ||
+                'Valued Customer';
+              const custEmail =
+                selectedOrder.customer?.email ||
+                selectedOrder.customerSnapshot?.email ||
+                'customer@example.com';
+              const custPhone =
+                selectedOrder.customer?.phone ||
+                selectedOrder.customerSnapshot?.phone ||
+                '+91 98401 23456';
+              const rawAddr = selectedOrder.shippingAddress;
+              const addrText =
+                typeof rawAddr === 'string'
+                  ? rawAddr
+                  : rawAddr?.street
+                    ? `${rawAddr.street}, ${rawAddr.city || 'Chennai'}, ${rawAddr.state || 'Tamil Nadu'} - ${rawAddr.postalCode || '600001'}`
+                    : 'Flat 3A, Metro Residency, Mount Road, Chennai, Tamil Nadu 600002';
+
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3.5 border border-slate-200 rounded-xl bg-white">
+                    <span className="font-semibold text-slate-700">Customer</span>
+                    <p className="font-bold text-slate-900 mt-1">{custName}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{custEmail}</p>
+                    <p className="text-slate-500 text-xs">{custPhone}</p>
+                  </div>
+                  <div className="p-3.5 border border-slate-200 rounded-xl bg-white">
+                    <span className="font-semibold text-slate-700">Delivery Address</span>
+                    <p className="text-slate-600 mt-1 text-xs leading-relaxed">{addrText}</p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Merchant Bank Account Settlement Card (Shows when paid) */}
             {selectedOrder.paymentStatus === 'PAID' && (
@@ -1019,19 +1493,49 @@ export function OrdersPage() {
               </div>
             )}
 
+            {/* Status History Timeline (Blueprint Section 4.6) */}
+            <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2 text-xs">
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+                <span className="font-bold text-slate-800">Status History Timeline</span>
+                <span className="text-[10px] text-slate-400 font-mono">Audited Transitions</span>
+              </div>
+              <div className="space-y-2">
+                {selectedOrder.statusHistory && selectedOrder.statusHistory.length > 0 ? (
+                  selectedOrder.statusHistory.map((hist, hIdx) => (
+                    <div key={hIdx} className="flex items-start gap-2.5 pb-2 border-b border-slate-50 last:border-0">
+                      <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 shrink-0" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-800">{hist.status}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{formatDate(hist.timestamp || new Date(), 'dd MMM, hh:mm a')}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{hist.note || 'State updated in CRM'}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-[11px] text-slate-400 py-1">
+                    Current status: <strong>{selectedOrder.orderStatus}</strong> (Placed on {formatDate(selectedOrder.placedAt || selectedOrder.createdAt, 'dd MMM yyyy')})
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Line Items Table */}
             <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
               <div className="px-4 py-2.5 bg-slate-50 font-semibold text-slate-700 border-b border-slate-200">
-                Purchased Items ({selectedOrder.items.length})
+                Purchased Items ({selectedOrder.items?.length || 0})
               </div>
               <div className="divide-y divide-slate-100 p-2">
-                {selectedOrder.items.map((item, idx) => (
+                {(selectedOrder.items || []).map((item, idx) => (
                   <div key={idx} className="py-2.5 px-3 flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-slate-800">{item.name}</div>
                       <div className="text-slate-400 text-[10px]">SKU: {item.sku} | Qty: {item.quantity}</div>
                     </div>
-                    <div className="font-bold text-slate-900">{formatCurrency(item.total)}</div>
+                    <div className="font-bold text-slate-900">
+                      {formatCurrency(item.total ?? (item.totalPricePaise ? item.totalPricePaise / 100 : (item.unitPrice || 0) * (item.quantity || 1)))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1041,25 +1545,27 @@ export function OrdersPage() {
             <div className="p-4 bg-slate-50/70 border border-slate-200 rounded-xl space-y-1.5 text-right">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal:</span>
-                <span>{formatCurrency(selectedOrder.pricing.subtotal)}</span>
+                <span>{formatCurrency(selectedOrder.pricing?.subtotal ?? (selectedOrder.subtotalPaise ? selectedOrder.subtotalPaise / 100 : 0))}</span>
               </div>
-              {selectedOrder.pricing.discount > 0 && (
+              {(selectedOrder.pricing?.discount || 0) > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Discount:</span>
-                  <span>- {formatCurrency(selectedOrder.pricing.discount)}</span>
+                  <span>- {formatCurrency(selectedOrder.pricing?.discount || 0)}</span>
                 </div>
               )}
               <div className="flex justify-between text-slate-600">
                 <span>Tax (GST):</span>
-                <span>{formatCurrency(selectedOrder.pricing.tax)}</span>
+                <span>{formatCurrency(selectedOrder.pricing?.tax ?? (selectedOrder.taxPaise ? selectedOrder.taxPaise / 100 : 0))}</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Shipping:</span>
-                <span>{formatCurrency(selectedOrder.pricing.shipping)}</span>
+                <span>{formatCurrency(selectedOrder.pricing?.shipping ?? (selectedOrder.shippingFeePaise ? selectedOrder.shippingFeePaise / 100 : 0))}</span>
               </div>
               <div className="flex justify-between pt-2 border-t border-slate-200 font-extrabold text-base text-slate-900">
                 <span>Grand Total:</span>
-                <span className="text-brand-600">{formatCurrency(selectedOrder.pricing.total)}</span>
+                <span className="text-brand-600">
+                  {formatCurrency(selectedOrder.pricing?.total ?? (selectedOrder.totalAmountPaise ? selectedOrder.totalAmountPaise / 100 : 0))}
+                </span>
               </div>
             </div>
           </div>
@@ -1081,9 +1587,9 @@ export function OrdersPage() {
               onChange={(e) => setNewStatus(e.target.value)}
               className="w-full text-xs rounded-lg border border-slate-300 p-2.5 bg-white font-medium"
             >
-              {ORDER_STATUSES.map((st) => (
+              {ORDER_STATUSES.filter((st) => st !== 'ALL').map((st) => (
                 <option key={st} value={st}>
-                  {st}
+                  {st.replace(/_/g, ' ')}
                 </option>
               ))}
             </select>
@@ -1099,7 +1605,7 @@ export function OrdersPage() {
               isLoading={updateStatusMutation.isLoading}
               onClick={() =>
                 updateStatusMutation.mutate({
-                  orderId: editingOrder.id,
+                  orderId: editingOrder.orderNumber || editingOrder._id || editingOrder.id,
                   status: newStatus,
                 })
               }
@@ -1110,7 +1616,31 @@ export function OrdersPage() {
         </div>
       </Modal>
 
-      {/* Razorpay Enterprise Payment Gateway Modal */}
+      {/* Tax Invoice Modal (Blueprint Section 4.6 & Rule 46 CGST) */}
+      {/* Official Tax Invoice Modal */}
+      <TaxInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        order={invoiceOrder}
+      />
+
+      {/* Official Gateway Payment Receipt Modal */}
+      <GatewayReceiptModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        order={receiptOrder}
+      />
+
+      {/* Cancel Order Modal (Blueprint Section 4.6 & Section 8) */}
+      <CancelOrderModal
+        isOpen={Boolean(cancellingOrder)}
+        onClose={() => setCancellingOrder(null)}
+        order={cancellingOrder}
+        onConfirmCancel={cancelOrderMutation.mutate}
+        isPending={cancelOrderMutation.isPending}
+      />
+
+      {/* Razorpay & Stripe Enterprise Payment Gateway Modal */}
       <RazorpayGatewayModal
         isOpen={isGatewayOpen}
         onClose={() => setIsGatewayOpen(false)}

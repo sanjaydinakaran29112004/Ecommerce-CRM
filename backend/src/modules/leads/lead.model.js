@@ -123,6 +123,14 @@ leadSchema.virtual('estimatedValueRupees').get(function () {
   return (this.estimatedValuePaise || 0) / 100;
 });
 
+leadSchema.virtual('estimatedValue').get(function () {
+  return (this.estimatedValuePaise || 0) / 100;
+});
+
+leadSchema.virtual('contactPerson').get(function () {
+  return this.contactName || '';
+});
+
 // Auto-generate unique Lead Code (e.g. LEAD-2411-8931)
 leadSchema.pre('save', async function (next) {
   if (!this.leadCode) {

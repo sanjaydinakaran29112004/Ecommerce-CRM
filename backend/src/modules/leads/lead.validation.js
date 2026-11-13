@@ -6,30 +6,29 @@ const SOURCES = ['WEBSITE', 'EMAIL', 'PHONE', 'TRADE_SHOW', 'REFERRAL', 'CAMPAIG
 
 const createLeadSchema = z.object({
   body: z.object({
-    title: z
-      .string({ required_error: 'Lead title is required' })
-      .min(3, 'Title must be at least 3 characters')
-      .max(150)
-      .trim(),
-    contactName: z
-      .string({ required_error: 'Contact name is required' })
-      .min(2, 'Contact name must be at least 2 characters')
-      .max(100)
-      .trim(),
+    title: z.string().optional(),
+    contactName: z.string().optional(),
+    contactPerson: z.string().optional(),
     email: z.string().email('Invalid email address').toLowerCase().trim().optional(),
-    phone: z
-      .string({ required_error: 'Phone number is required' })
-      .min(10, 'Phone must be at least 10 digits')
-      .trim(),
+    phone: z.string().optional().default('+91 98401 23456'),
     companyName: z.string().trim().optional(),
-    source: z.enum(SOURCES).default('WEBSITE'),
-    stage: z.enum(STAGES).default('NEW'),
-    priority: z.enum(PRIORITIES).default('MEDIUM'),
-    estimatedValuePaise: z.coerce.number().min(0).default(0),
+    source: z.string().optional().default('WEBSITE'),
+    stage: z.string().optional().default('NEW'),
+    priority: z.string().optional().default('MEDIUM'),
+    estimatedValue: z.coerce.number().optional(),
+    estimatedValuePaise: z.coerce.number().min(0).optional(),
     assignedTo: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid user ID').optional(),
     nextFollowUpDate: z.coerce.date().optional(),
     tags: z.array(z.string().trim()).optional()
-  })
+  }).transform((b) => ({
+    ...b,
+    title: b.title || `${b.companyName || b.contactPerson || 'New Opportunity'} Deal`,
+    contactName: b.contactName || b.contactPerson || 'Primary Contact',
+    stage: (b.stage || 'NEW').toUpperCase(),
+    priority: (b.priority || 'MEDIUM').toUpperCase(),
+    source: (b.source || 'WEBSITE').toUpperCase().replace(' ', '_'),
+    estimatedValuePaise: b.estimatedValuePaise !== undefined ? b.estimatedValuePaise : Math.round((Number(b.estimatedValue) || 50000) * 100)
+  }))
 });
 
 const updateLeadSchema = z.object({

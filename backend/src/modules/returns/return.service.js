@@ -133,8 +133,24 @@ class ReturnService {
 
     const totalPages = Math.ceil(total / limit) || 1;
 
+    const formattedReturns = returns.map((r) => ({
+      ...r,
+      id: r._id?.toString() || r.id,
+      returnNumber: r.rmaNumber || r.returnNumber || 'RET-2026-001',
+      orderNumber: r.order?.orderNumber || r.orderNumber || 'ORD-2026-001',
+      customer: r.customer?.firstName
+        ? `${r.customer.firstName} ${r.customer.lastName || ''}`.trim()
+        : (typeof r.customer === 'string' ? r.customer : 'Valued Customer'),
+      item: (r.items && r.items[0]?.name) || r.item || 'Ordered Product Unit',
+      refundAmount: r.totalRefundRequestedPaise
+        ? `₹ ${(r.totalRefundRequestedPaise / 100).toLocaleString('en-IN')}`
+        : (r.refundAmount || '₹ 0.00'),
+      inspectionNotes: r.inspection?.notes || r.inspectionNotes || 'Awaiting warehouse inspection.',
+      status: r.status
+    }));
+
     return {
-      returns,
+      returns: formattedReturns,
       meta: {
         page,
         limit,

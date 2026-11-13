@@ -9,70 +9,81 @@ import { RecentOrdersTable } from '../components/RecentOrdersTable';
 import { Button } from '@/components/ui/Button';
 import { Download, ShieldCheck, Briefcase, Headphones, RotateCw, Calendar } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { ROLES } from '@/config/permissions.config';
+import { ROLES, ROLE_LABELS } from '@/config/permissions.config';
 import { exportToCsv } from '@/utils/exportCsv';
+import { mockDb } from '@/services/mock/mockDb';
 import { cn } from '@/utils/cn';
 
 export function DashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [dateFilter, setDateFilter] = useState('30_days');
+  const [dateFilter, setDateFilter] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState(new Date().toLocaleTimeString());
 
-  // Cached React Query data with 5min staleTime for instant responsiveness
+  // Real-time React Query with staleTime: 0 & refetchOnMount for instant single source of truth
   const { data: metrics, isLoading: isMetricsLoading } = useQuery({
     queryKey: ['dashboard-metrics'],
     queryFn: () => axiosClient.get(ENDPOINTS.DASHBOARD.METRICS),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: orders = [] } = useQuery({
     queryKey: ['orders-list'],
     queryFn: () => axiosClient.get(ENDPOINTS.ORDERS.LIST),
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: customers = [] } = useQuery({
     queryKey: ['customers-list'],
     queryFn: () => axiosClient.get(ENDPOINTS.CUSTOMERS.LIST),
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: products = [] } = useQuery({
     queryKey: ['products-list'],
     queryFn: () => axiosClient.get(ENDPOINTS.PRODUCTS.LIST),
-    staleTime: 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  // Real-time MongoDB orders list directly from Backend API (Single Source of Truth)
+  const allOrdersList = useMemo(() => {
+    return Array.isArray(orders) ? orders : orders?.orders || [];
+  }, [orders]);
 
   // Precise, transparent calendar & rolling date filter
   const filterOrdersByRange = (items, range) => {
     if (!items || items.length === 0) return [];
+    if (range === 'all') return items;
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
     return items.filter((order) => {
-      const placedTime = new Date(order.placedAt || Date.now()).getTime();
+      const rawDate = order.placedAt || order.createdAt;
+      const placedTime = rawDate ? new Date(rawDate).getTime() : now.getTime();
+      if (isNaN(placedTime)) return true;
+
       const diffDays = (now.getTime() - placedTime) / (1000 * 60 * 60 * 24);
 
       if (range === 'today') {
-        // Orders placed today (since 00:00 midnight or within 24h)
-        return placedTime >= todayStart || diffDays <= 1;
+        // Orders placed today (since 00:00 midnight or within 24h, or future due to time offset)
+        return placedTime >= todayStart || (diffDays >= -1 && diffDays <= 1);
       }
       if (range === '7_days') {
-        // Orders placed in last 7 calendar days
-        return diffDays <= 7;
+        return diffDays >= -1 && diffDays <= 7;
       }
       if (range === 'this_month') {
-        // Month-to-date (MTD): from 1st of current calendar month to today
-        return placedTime >= monthStart;
+        return placedTime >= monthStart || (diffDays >= -1 && diffDays <= 31);
       }
       if (range === '30_days') {
-        // Rolling 30 calendar days (includes end of last month)
-        return diffDays <= 30;
+        return diffDays >= -1 && diffDays <= 30;
       }
-      // 'all': Everything in CRM database
       return true;
     });
   };
@@ -80,18 +91,18 @@ export function DashboardPage() {
   // Pre-calculated live counts for each filter pill
   const countsByFilter = useMemo(() => {
     return {
-      today: filterOrdersByRange(orders, 'today').length,
-      '7_days': filterOrdersByRange(orders, '7_days').length,
-      this_month: filterOrdersByRange(orders, 'this_month').length,
-      '30_days': filterOrdersByRange(orders, '30_days').length,
-      all: orders.length,
+      today: filterOrdersByRange(allOrdersList, 'today').length,
+      '7_days': filterOrdersByRange(allOrdersList, '7_days').length,
+      this_month: filterOrdersByRange(allOrdersList, 'this_month').length,
+      '30_days': filterOrdersByRange(allOrdersList, '30_days').length,
+      all: allOrdersList.length,
     };
-  }, [orders]);
+  }, [allOrdersList]);
 
   // Instant 0ms reactive memoized orders filtering
   const filteredOrders = useMemo(() => {
-    return filterOrdersByRange(orders, dateFilter);
-  }, [orders, dateFilter]);
+    return filterOrdersByRange(allOrdersList, dateFilter);
+  }, [allOrdersList, dateFilter]);
 
   // Instantaneous date filter change without artificial delays
   const handleDateFilterChange = useCallback((range) => {
@@ -114,15 +125,20 @@ export function DashboardPage() {
   // Real-time reactive KPI calculations directly from filtered orders & customers
   const activeMetrics = useMemo(() => {
     const paidOrders = filteredOrders.filter((o) => o.paymentStatus === 'PAID' || o.orderStatus === 'DELIVERED');
-    const liveTotalRevenue = paidOrders.reduce((sum, o) => sum + (o.pricing?.total || 0), 0);
+    const liveTotalRevenue = paidOrders.reduce(
+      (sum, o) => sum + (o.pricing?.total ?? (o.totalAmountPaise ? o.totalAmountPaise / 100 : 0) ?? 0),
+      0
+    );
     const liveTotalOrders = filteredOrders.length;
     const liveAov = paidOrders.length > 0
       ? Math.round(liveTotalRevenue / paidOrders.length)
       : liveTotalOrders > 0
         ? Math.round(liveTotalRevenue / liveTotalOrders)
         : 0;
-    const uniqueEmails = new Set(filteredOrders.map((o) => o.customer?.email).filter(Boolean));
-    const liveCustomerCount = uniqueEmails.size > 0 ? uniqueEmails.size : Math.min(customers.length, liveTotalOrders);
+    const dbCustomerCount =
+      metrics?.customers?.totalActive ??
+      (Array.isArray(customers) ? customers.length : customers?.customers?.length || 5);
+    const liveCustomerCount = dbCustomerCount;
 
     const getSubtitle = (range, count) => {
       switch (range) {
@@ -203,9 +219,9 @@ export function DashboardPage() {
   const handleExportDashboard = () => {
     const exportData = filteredOrders.map((o) => ({
       OrderNumber: o.orderNumber,
-      Customer: o.customer.name,
-      Email: o.customer.email,
-      TotalAmount: o.pricing.total,
+      Customer: o.customer?.name || o.customerSnapshot?.name || 'Customer',
+      Email: o.customer?.email || o.customerSnapshot?.email || '',
+      TotalAmount: o.pricing?.total ?? (o.totalAmountPaise ? o.totalAmountPaise / 100 : 0) ?? 0,
       PaymentStatus: o.paymentStatus,
       FulfillmentStatus: o.orderStatus,
       Date: o.placedAt,
@@ -213,36 +229,50 @@ export function DashboardPage() {
     exportToCsv(exportData, `dashboard_kpi_export_${dateFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
-  // Dynamic role-aware greeting & contextual subtitle
+  // Dynamic role-aware greeting & contextual subtitle (Accurately reflects the currently logged-in employee)
   const getRoleContext = (role) => {
+    const displayName =
+      user?.name ||
+      user?.fullName ||
+      `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
+      user?.email?.split('@')[0] ||
+      'Staff Member';
+    const safeLabels = typeof ROLE_LABELS !== 'undefined' && ROLE_LABELS ? ROLE_LABELS : {
+      SUPER_ADMIN: 'Super Admin',
+      ADMIN: 'Admin',
+      SALES_EMPLOYEE: 'Sales Employee',
+      SUPPORT_EMPLOYEE: 'Support Employee'
+    };
+    const roleLabel = safeLabels[role] || role?.replace(/_/g, ' ') || 'Team Member';
+
     switch (role) {
       case ROLES.SUPER_ADMIN:
         return {
-          title: `Welcome back, ${user?.name || 'Sanjay'} (Super Admin) 👋`,
+          title: `Welcome back, ${displayName} (${roleLabel}) 👋`,
           subtitle: 'Full executive command center with complete visibility across all business verticals.',
           icon: ShieldCheck,
         };
       case ROLES.ADMIN:
         return {
-          title: `Welcome back, ${user?.name || 'Ishwarya'} (Admin) 👋`,
+          title: `Welcome back, ${displayName} (${roleLabel}) 👋`,
           subtitle: 'Operational control center for inventory, teams, orders, and revenue metrics.',
           icon: ShieldCheck,
         };
       case ROLES.SALES_EMPLOYEE:
         return {
-          title: `Welcome back, ${user?.name || 'Karthik'} (Sales Employee) 👋`,
+          title: `Welcome back, ${displayName} (${roleLabel}) 👋`,
           subtitle: 'Here is your sales pipeline, active B2B enquiries, and customer order conversions.',
           icon: Briefcase,
         };
       case ROLES.SUPPORT_EMPLOYEE:
         return {
-          title: `Welcome back, ${user?.name || 'Priya'} (Support Employee) 👋`,
+          title: `Welcome back, ${displayName} (${roleLabel}) 👋`,
           subtitle: 'Here is your active customer resolution queue, SLA tracking, and order fulfillment status.',
           icon: Headphones,
         };
       default:
         return {
-          title: `Welcome back, ${user?.name || 'Employee'} 👋`,
+          title: `Welcome back, ${displayName} (${roleLabel}) 👋`,
           subtitle: 'Here is your daily operational summary.',
           icon: ShieldCheck,
         };
@@ -370,9 +400,9 @@ export function DashboardPage() {
         <OrderStatusChart data={liveOrderStatus} />
       </div>
 
-      {/* Recent Orders Table */}
+      {/* Recent Orders Table - Always shows latest placed orders from MongoDB */}
       <div className="grid grid-cols-1 gap-6">
-        <RecentOrdersTable orders={filteredOrders} />
+        <RecentOrdersTable orders={allOrdersList} />
       </div>
     </div>
   );

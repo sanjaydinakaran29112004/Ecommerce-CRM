@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { mockDb } from '@/services/mock/mockDb';
-import { Plus, Clock, CheckCircle2 } from 'lucide-react';
+import { ENDPOINTS } from '@/services/api/endpoints';
+import { axiosClient } from '@/services/api/axiosClient';
+import { Plus, Clock, CheckCircle2, Circle, AlertCircle, Check, Filter } from 'lucide-react';
 
 const INITIAL_TASKS = [
   {
@@ -23,7 +26,7 @@ const INITIAL_TASKS = [
     priority: 'MEDIUM',
     dueDate: 'Tomorrow, 11:00 AM',
     completed: false,
-    status: 'TO_DO',
+    status: 'TODO',
   },
   {
     id: 'tsk_3',
@@ -37,9 +40,38 @@ const INITIAL_TASKS = [
 ];
 
 export function TasksPage() {
-  const [tasks, setTasks] = useState(() => {
-    return mockDb.get('tasks').length ? mockDb.get('tasks') : INITIAL_TASKS;
+  const queryClient = useQueryClient();
+  const [filterTab, setFilterTab] = useState('ALL'); // 'ALL' | 'PENDING' | 'COMPLETED'
+  const [toastMessage, setToastMessage] = useState('');
+
+  const { data: rawTasksData, isLoading } = useQuery({
+    queryKey: ['tasks-list'],
+    queryFn: async () => {
+      try {
+        const res = await axiosClient.get(ENDPOINTS.TASKS.LIST);
+        const list = Array.isArray(res) ? res : res?.tasks || res?.data?.tasks || [];
+        if (list.length > 0) return list;
+      } catch (err) {
+        console.warn('API tasks fetch fallback to local store:', err);
+      }
+      return mockDb.get('tasks').length ? mockDb.get('tasks') : INITIAL_TASKS;
+    },
+    staleTime: 30 * 1000,
   });
+
+  // Local state for 0ms instantaneous optimistic UI updates
+  const [localTasks, setLocalTasks] = useState(() => {
+    const fromMock = mockDb.get('tasks');
+    return fromMock && fromMock.length > 0 ? fromMock : INITIAL_TASKS;
+  });
+
+  // Sync query data into local state whenever fresh data arrives
+  useEffect(() => {
+    if (rawTasksData && rawTasksData.length > 0) {
+      setLocalTasks(rawTasksData);
+      mockDb.set('tasks', rawTasksData);
+    }
+  }, [rawTasksData]);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -49,43 +81,123 @@ export function TasksPage() {
     dueDate: 'Tomorrow, 05:00 PM',
   });
 
-  const toggleTask = (taskId) => {
-    const updated = tasks.map((t) => {
-      if (t.id === taskId) {
-        return { ...t, completed: !t.completed, status: !t.completed ? 'COMPLETED' : 'IN_PROGRESS' };
+  const createTaskMutation = useMutation({
+    mutationFn: async (payload) => {
+      try {
+        const res = await axiosClient.post(ENDPOINTS.TASKS.CREATE, payload);
+        return res?.task || res?.data?.task || res;
+      } catch (err) {
+        console.warn('Failed to save task to backend, using local store:', err);
+        return payload;
+      }
+    },
+    onSuccess: (savedTask) => {
+      const entry = {
+        id: savedTask._id || savedTask.id || `tsk_${Date.now()}`,
+        title: newTask.title,
+        assignedTo: newTask.assignedTo,
+        priority: newTask.priority,
+        dueDate: newTask.dueDate,
+        completed: false,
+        status: 'TODO',
+      };
+      const updated = [entry, ...localTasks];
+      setLocalTasks(updated);
+      mockDb.set('tasks', updated);
+      queryClient.setQueryData(['tasks-list'], updated);
+      queryClient.invalidateQueries({ queryKey: ['tasks-list'] });
+
+      setIsCreateModalOpen(false);
+      setNewTask({
+        title: '',
+        assignedTo: 'Karthik Raja',
+        priority: 'HIGH',
+        dueDate: 'Tomorrow, 05:00 PM',
+      });
+      showToast('New operational task created successfully!');
+    },
+  });
+
+  // Instantaneous optimistic checkbox toggle handler
+  const handleToggleTask = async (task, e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    const targetId = String(task.id || task._id);
+    const isCurrentlyCompleted = Boolean(task.completed || task.status === 'COMPLETED');
+    const nextCompleted = !isCurrentlyCompleted;
+    const nextStatus = nextCompleted ? 'COMPLETED' : 'IN_PROGRESS';
+
+    // 1. Immediate optimistic UI update (0ms delay)
+    const updated = localTasks.map((t) => {
+      const currentId = String(t.id || t._id);
+      if (currentId === targetId) {
+        return {
+          ...t,
+          completed: nextCompleted,
+          status: nextStatus,
+          completedAt: nextCompleted ? new Date().toISOString() : null,
+        };
       }
       return t;
     });
-    setTasks(updated);
+
+    setLocalTasks(updated);
     mockDb.set('tasks', updated);
+    queryClient.setQueryData(['tasks-list'], updated);
+
+    // 2. Feedback toast
+    showToast(
+      nextCompleted
+        ? `"${task.title.slice(0, 36)}..." marked as Completed!`
+        : `"${task.title.slice(0, 36)}..." reopened as In Progress!`
+    );
+
+    // 3. Asynchronous backend persistence
+    try {
+      if (!targetId.startsWith('tsk_')) {
+        await axiosClient.put(ENDPOINTS.TASKS.UPDATE(targetId), {
+          status: nextStatus,
+        });
+      }
+    } catch (err) {
+      console.warn('Backend update fallback recorded:', err);
+    }
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage('');
+    }, 3500);
   };
 
   const handleCreateSubmit = (e) => {
     e.preventDefault();
-    const entry = {
-      id: `tsk_${Date.now()}`,
+    createTaskMutation.mutate({
       title: newTask.title,
       assignedTo: newTask.assignedTo,
       priority: newTask.priority,
-      dueDate: newTask.dueDate,
-      completed: false,
-      status: 'TO_DO',
-    };
-
-    const updated = [entry, ...tasks];
-    setTasks(updated);
-    mockDb.set('tasks', updated);
-    setIsCreateModalOpen(false);
-    setNewTask({
-      title: '',
-      assignedTo: 'Karthik Raja',
-      priority: 'HIGH',
-      dueDate: 'Tomorrow, 05:00 PM',
+      status: 'TODO',
+      dueDate: new Date(Date.now() + 86400000).toISOString(),
     });
   };
 
+  // Filter tasks based on active tab
+  const filteredTasks = localTasks.filter((t) => {
+    const isCompleted = Boolean(t.completed || t.status === 'COMPLETED');
+    if (filterTab === 'PENDING') return !isCompleted;
+    if (filterTab === 'COMPLETED') return isCompleted;
+    return true;
+  });
+
+  const completedCount = localTasks.filter((t) => Boolean(t.completed || t.status === 'COMPLETED')).length;
+  const pendingCount = localTasks.length - completedCount;
+
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -106,59 +218,162 @@ export function TasksPage() {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {tasks.map((t) => (
-          <Card
-            key={t.id}
-            className={`p-4 flex items-center justify-between transition-all duration-150 ${
-              t.completed ? 'bg-slate-50/80 border-slate-200 opacity-75' : 'hover:border-slate-300'
+      {/* Floating Status Toast */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-between shadow-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+          <button
+            onClick={() => setToastMessage('')}
+            className="text-emerald-600 hover:text-emerald-800 text-xs font-bold px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Filter Tabs & Summary Counter */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterTab('ALL')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+              filterTab === 'ALL'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            <div className="flex items-center gap-3.5">
-              <input
-                type="checkbox"
-                checked={t.completed}
-                onChange={() => toggleTask(t.id)}
-                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer"
-              />
-              <div>
-                <h4
-                  className={`font-semibold text-xs sm:text-sm ${
-                    t.completed ? 'line-through text-slate-400' : 'text-slate-800'
-                  }`}
-                >
-                  {t.title}
-                </h4>
-                <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
-                  <span>
-                    Assigned to: <strong className="text-slate-600 font-semibold">{t.assignedTo}</strong>
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <Clock className="w-3 h-3" />
-                    <span>{t.dueDate}</span>
-                  </span>
-                  {t.completed && (
-                    <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold ml-2">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>Completed</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
+            All Tasks ({localTasks.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab('PENDING')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+              filterTab === 'PENDING'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Pending / In Progress ({pendingCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterTab('COMPLETED')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+              filterTab === 'COMPLETED'
+                ? 'bg-brand-600 text-white'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Completed ({completedCount})
+          </button>
+        </div>
 
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                t.priority === 'HIGH'
-                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {t.priority}
-            </span>
-          </Card>
-        ))}
+        <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span>Click any checkbox to immediately toggle status</span>
+        </div>
+      </div>
+
+      {/* Tasks List */}
+      <div className="space-y-2.5">
+        {filteredTasks.length === 0 ? (
+          <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+            No tasks found in this view.
+          </div>
+        ) : (
+          filteredTasks.map((t) => {
+            const isCompleted = Boolean(t.completed || t.status === 'COMPLETED');
+            return (
+              <Card
+                key={t.id || t._id}
+                onClick={(e) => handleToggleTask(t, e)}
+                className={`p-3.5 sm:p-4 flex items-center justify-between transition-all duration-150 cursor-pointer select-none ${
+                  isCompleted
+                    ? 'bg-slate-50/90 border-slate-200 opacity-80'
+                    : 'bg-white hover:border-brand-300 hover:shadow-xs'
+                }`}
+              >
+                <div className="flex items-center gap-3.5 min-w-0 pr-3">
+                  {/* Interactive Custom Checkbox */}
+                  <div
+                    onClick={(e) => handleToggleTask(t, e)}
+                    className="shrink-0 flex items-center justify-center cursor-pointer p-0.5"
+                    role="checkbox"
+                    aria-checked={isCompleted}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggleTask(t, e);
+                      }
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isCompleted}
+                      onChange={(e) => handleToggleTask(t, e)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer transition-transform active:scale-95"
+                    />
+                  </div>
+
+                  {/* Task Content */}
+                  <div className="min-w-0">
+                    <h4
+                      className={`font-semibold text-xs sm:text-sm leading-snug transition-colors ${
+                        isCompleted
+                          ? 'line-through text-slate-400 font-normal'
+                          : 'text-slate-800'
+                      }`}
+                    >
+                      {t.title}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-400">
+                      <span>
+                        Assigned to:{' '}
+                        <strong className="text-slate-600 font-semibold">
+                          {typeof t.assignedTo === 'object' && t.assignedTo !== null
+                            ? `${t.assignedTo.firstName || ''} ${t.assignedTo.lastName || ''}`.trim() || t.assignedTo.email || 'Staff Member'
+                            : t.assignedTo || 'Staff Member'}
+                        </strong>
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1 text-slate-500">
+                        <Clock className="w-3 h-3" />
+                        <span>{t.dueDate}</span>
+                      </span>
+                      {isCompleted && (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.2 rounded text-[10px] border border-emerald-200 ml-1">
+                          <Check className="w-3 h-3" />
+                          <span>Done</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Priority Badge */}
+                <div className="shrink-0 flex items-center gap-2">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      t.priority === 'HIGH' || t.priority === 'URGENT'
+                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                        : t.priority === 'MEDIUM'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {t.priority}
+                  </span>
+                </div>
+              </Card>
+            );
+          })
+        )}
       </div>
 
       {/* Create Task Modal */}
@@ -219,7 +434,7 @@ export function TasksPage() {
             <Button variant="outline" size="sm" onClick={() => setIsCreateModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm">
+            <Button type="submit" variant="primary" size="sm" isLoading={createTaskMutation.isPending}>
               Create & Assign Task
             </Button>
           </div>
