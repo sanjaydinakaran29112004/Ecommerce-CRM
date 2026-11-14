@@ -1,414 +1,553 @@
-# EntryKode E-Commerce CRM Suite — Master Project Report & Technical Documentation
+# EntryKode E-Commerce CRM Suite — Master Project Report & Technical Blueprint
 
-**Document Title:** Comprehensive Enterprise Project Report & System Specification  
+**Document Title:** Comprehensive Enterprise Project Report, System Architecture & Database Specification  
 **Project Name:** EntryKode Centralized E-Commerce CRM Suite  
-**Prepared By:** Sanjay D (Super Admin & Project Lead)  
-**Target Audience:** Team Lead (TL), Engineering Management & Stakeholders  
+**Prepared By:** Sanjay D (Super Admin & Full Stack Lead, `sanjay@entrykode.com`)  
+**Target Audience:** Team Lead (TL), Engineering Management, Stakeholders & Code Reviewers  
 **Date of Submission:** 14 November 2026  
-**Version:** 2.4.0 (Production Ready)  
+**System Status:** Production Ready (100% Build Pass, Zero Compile Errors)  
 **System Repository:** `D:\EntryKode`  
-**Git Branch:** `main` (Commit: `5edc56f`)
+**Git Branches:** `main` & `develop`  
+**Live Documentation Portal:** Hosted on GitHub Pages (`/docs/index.html`)
 
 ---
 
-## 1. Executive Summary
+## 📑 Table of Contents
+1. [Executive Summary & Business Value](#1-executive-summary--business-value)
+2. [End-to-End System Architecture](#2-end-to-end-system-architecture)
+3. [Exhaustive Breakdown of All 15 Functional Modules](#3-exhaustive-breakdown-of-all-15-functional-modules)
+   - [3.1 Executive Dashboard & Real-Time KPI Analytics](#31-module-1-executive-dashboard--real-time-kpi-analytics)
+   - [3.2 Customer 360 & Automated Dormancy Governance](#32-module-2-customer-360--automated-dormancy-governance)
+   - [3.3 Leads & Sales Conversion Pipeline (Kanban)](#33-module-3-leads--sales-conversion-pipeline-kanban)
+   - [3.4 Product Catalog & SKU Management](#34-module-4-product-catalog--sku-management)
+   - [3.5 Warehouse Inventory & Stock Movement Ledger](#35-module-5-warehouse-inventory--stock-movement-ledger)
+   - [3.6 Orders, Fulfillment & Delivery Terminal Lock](#36-module-6-orders-fulfillment--delivery-terminal-lock)
+   - [3.7 Payment Gateway Integration & Settlement Receipts](#37-module-7-payment-gateway-integration--settlement-receipts)
+   - [3.8 Returns, Reverse Logistics & Razorpay Refund Gateway (RMA)](#38-module-8-returns-reverse-logistics--razorpay-refund-gateway-rma)
+   - [3.9 Customer Support Ticket Threads & Escalations](#39-module-9-customer-support-ticket-threads--escalations)
+   - [3.10 Targeted Marketing Campaigns & 4-Stage Lifecycle](#310-module-10-targeted-marketing-campaigns--4-stage-lifecycle)
+   - [3.11 Team Tasks & 0ms Reactive Deliverable Tracker](#311-module-11-team-tasks--0ms-reactive-deliverable-tracker)
+   - [3.12 Business Intelligence, Analytics & Financial Export](#312-module-12-business-intelligence-analytics--financial-export)
+   - [3.13 Staff, Employees & 4-Tier RBAC Management](#313-module-13-staff-employees--4-tier-rbac-management)
+   - [3.14 System Settings, Security & Field Requirements Box](#314-module-14-system-settings-security--field-requirements-box)
+   - [3.15 Immutable Audit Logging & Compliance Ledger](#315-module-15-immutable-audit-logging--compliance-ledger)
+4. [Exhaustive Database Model Specifications (All 13 Models)](#4-exhaustive-database-model-specifications-all-13-models)
+5. [Complete REST API Contract Directory](#5-complete-rest-api-contract-directory)
+6. [Resolved Technical Challenges & Bug Fix Log](#6-resolved-technical-challenges--bug-fix-log)
+7. [GitHub Hosting & Live GitHub Pages Deployment Guide](#7-github-hosting--live-github-pages-deployment-guide)
+
+---
+
+## 1. Executive Summary & Business Value
 
 ### 1.1 Project Objective
-**EntryKode CRM** is a centralized, enterprise-grade Customer Relationship Management (CRM) and E-Commerce Operations platform. The platform unifies the entire post-click e-commerce lifecycle into a single operational interface:
-- **Omnichannel Sales & Fulfillment:** Direct order placement, fulfillment pipeline tracking, and Razorpay payment gateway integration.
-- **After-Sales Service & Reverse Logistics:** Quality inspection of returned goods, Return Merchandise Authorization (RMA), and instant payment gateway refund processing.
-- **Customer 360 & Retention Intelligence:** Real-time customer profile aggregation, lifetime value (LTV) calculation, and automated dormancy tracking (>1 year inactivity).
-- **Customer Support Grievance Threads:** Multi-agent support ticket queues with chronological customer conversation histories and internal escalation workflows.
-- **Targeted Marketing Campaigns:** Segmented customer cohort broadcasting (Email, SMS, WhatsApp) with full lifecycle status controls (Draft, Active, Completed, Paused).
-- **Team Activity & Task Governance:** Real-time deliverable assignment and 0ms instantaneous task completion toggles.
-
-### 1.2 Key Highlights & Achievements
-- **Decoupled Modern Stack:** React 18, Vite, Tailwind CSS, TanStack Query v5, Node.js v22, Express, and native MongoDB.
-- **Zero-Discrepancy Metrics:** Eliminated all heuristic counters; metrics are bound 1:1 directly to the native MongoDB database (`ecommerce_crm`).
-- **Cryptographically Verified Financial Workflows:** Official Razorpay Gateway Settlement Receipts with transaction UTR tracking and GST Tax Invoicing.
-- **Granular 4-Tier RBAC:** Strict Role-Based Access Control partitioning access between Super Admin, Admin, Sales Employee, and Support Employee.
-- **Production Build Integrity:** 100% clean production build with 0 warnings, zero compile errors, and automated failover handling.
-
-```mermaid
-flowchart LR
-    A["Online Customer / Storefront"] --> B["EntryKode CRM Core"]
-    B --> C["Orders & Fulfillment Engine"]
-    B --> D["Customer 360 & Leads"]
-    B --> E["Returns & Razorpay Refund Gateway"]
-    B --> F["Support Ticket Threads"]
-    B --> G["Marketing Campaigns"]
-    B --> H["Employee Task Tracker"]
-    
-    C --> I[("MongoDB: ecommerce_crm")]
-    D --> I
-    E --> I
-    F --> I
-    G --> I
-    H --> I
-```
-
----
-
-## 2. Technology Stack & Architecture
-
-### 2.1 Architecture Overview
-The platform follows a decoupled, service-oriented client-server architecture designed for zero latency, responsive reactivity, and resilient offline/online synchronization.
-
-| Layer | Technologies Used | Key Responsibilities |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **React 18, Vite 5.4** | High-performance SPA, sub-second Hot Module Replacement (HMR). |
-| **State & Server Cache** | **TanStack React Query v5** | Server-state caching, optimistic mutations, zero-ms reactive UI updates. |
-| **Styling & Design System** | **Tailwind CSS v3, Lucide Icons** | Responsive layout, dark slate/brand indigo color system, custom UI components. |
-| **Data Visualization** | **Recharts** | Interactive revenue trend lines, order status donut charts, KPI sparklines. |
-| **Backend Runtime** | **Node.js v22.18, Express.js** | RESTful JSON API, middleware pipelines, error handling, rate limiting. |
-| **Database & ODM** | **MongoDB 9.0, Mongoose ODM** | Document database (`ecommerce_crm`), subdocument schemas, pre-validate hooks. |
-| **Validation & Security** | **Zod, JWT, BCrypt** | Schema-level request validation, cryptographically signed tokens, password hashing. |
-| **Payment Gateway** | **Razorpay Enterprise API** | Online payments (UPI, Cards, NetBanking), instant gateway refund settlement. |
+**EntryKode CRM** is an enterprise-grade, centralized Customer Relationship Management and Operations platform specifically engineered for modern multi-channel e-commerce operations. It consolidates the fragmented tools used in post-purchase operations into a unified, secure, and reactive cockpit.
 
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend Client (React 18 + Vite)"]
-        UI["Tailwind CSS UI / Lucide Icons"]
-        RQ["TanStack Query Cache (0ms Reactivity)"]
-        Axios["Axios Interceptor (JWT + Error Handling)"]
+    subgraph CommerceOps["EntryKode Unified E-Commerce Operations"]
+        direction TB
+        A["Omnichannel Storefront / Customer Orders"] --> B["EntryKode CRM Core"]
+        B --> C["Orders & Payment Settlement (Razorpay)"]
+        B --> D["Warehouse Inventory & Stock Ledger"]
+        B --> E["Customer 360 & Auto-Dormancy"]
+        B --> F["Returns Inspection & Gateway Refunds (RMA)"]
+        B --> G["Customer Support Grievance Threads"]
+        B --> H["Marketing Campaigns Lifecycle"]
+        B --> I["Employee Task Coordination"]
+        B --> J["Executive BI & Financial Audit Logs"]
+    end
+    
+    C --> DB[("MongoDB: ecommerce_crm")]
+    D --> DB
+    E --> DB
+    F --> DB
+    G --> DB
+    H --> DB
+    I --> DB
+    J --> DB
+```
+
+### 1.2 Enterprise Architectural Standards
+1. **Decoupled Client-Server Decoupling:** Standalone React 18 SPA consuming a secure Express.js REST API on port 5000 with JWT authentication.
+2. **Deterministic Data Integrity:** Heuristic and random metrics were completely eliminated. All dashboard metrics, counts, and statuses are mathematically computed directly from live MongoDB collections.
+3. **Optimistic Reactivity (0ms Perceived Latency):** Leveraging TanStack React Query v5 and local state reconciliation so user operations (e.g. task completion, notification dismissal, campaign status toggles) feel instantaneous.
+4. **Cryptographic Financial Safety:** Integrated Razorpay payment settlements with unique UTR reference tracking, printable gateway receipts, idempotency keys, and instant reverse gateway refund workflows.
+5. **Strict 4-Tier Role-Based Access Control (RBAC):** Hierarchical permissions governing Super Admins, Admins, Sales Managers, and Support Staff at both frontend route/component levels and backend API middleware.
+
+---
+
+## 2. End-to-End System Architecture
+
+```mermaid
+flowchart LR
+    subgraph Frontend["Frontend Tier (React 18 + Vite 5.4)"]
+        UI["Tailwind CSS 3.4 & Lucide Icons"]
+        Router["React Router v6 (Protected / Public Guards)"]
+        Query["TanStack Query Cache v5 (0ms Optimistic Mutations)"]
+        Axios["Axios Interceptor (Bearer JWT + Auto-Refresh)"]
+        UI --> Router --> Query --> Axios
     end
 
-    subgraph Server["Backend API Server (Node.js + Express)"]
-        AuthMid["JWT Authentication & RBAC Guard"]
-        ValMid["Zod Validation Middleware"]
-        Controllers["Module Controllers"]
-        Services["Business Logic Services"]
+    subgraph Backend["Backend Tier (Node.js v22 + Express)"]
+        AuthMid["JWT Auth & Role Guard Middleware"]
+        ValMid["Zod & Mongoose Validation Layer"]
+        Controllers["15 Modular Feature Controllers"]
+        Services["Business Logic & Audit Logger"]
+        AuthMid --> ValMid --> Controllers --> Services
     end
 
-    subgraph Database["Data & External Integrations"]
-        Mongo[("MongoDB Native (ecommerce_crm)")]
-        Rzp["Razorpay Payment Gateway API"]
+    subgraph Storage["Data & External Services"]
+        Mongo[("MongoDB Native 9.0 (ecommerce_crm)")]
+        RzpAPI["Razorpay Enterprise Payment Gateway"]
+        Services --> Mongo
+        Services --> RzpAPI
     end
 
-    UI --> RQ --> Axios
-    Axios -- "HTTP / REST (Port 5000)" --> AuthMid
-    AuthMid --> ValMid --> Controllers --> Services
-    Services --> Mongo
-    Services --> Rzp
+    Axios -- "HTTP REST (Port 5000)" --> AuthMid
 ```
 
 ---
 
-## 3. Detailed Functional Modules & Implementation
+## 3. Exhaustive Breakdown of All 15 Functional Modules
 
-### 3.1 Module 1: Executive Role-Aware Dashboard & Metrics
-The Dashboard serves as the command center for business intelligence and operations.
-- **Accurate Real-Time KPI Cards:**
-  - **Total Revenue:** Summed from paid and delivered orders with INR (₹) formatting.
-  - **Total Orders:** Filterable by date ranges (Today, 7 Days, This Month, Last 30 Days, All Time).
-  - **Active Customers:** Fixed count bound directly to `metrics.customers.totalActive ?? customers.length`, strictly synchronizing with the 5 active MongoDB customer accounts without artificial overrides.
-  - **Average Order Value (AOV):** Automatically computed as $\frac{\text{Total Paid Revenue}}{\text{Paid Orders}}$.
-- **Interactive Data Visualizations:**
-  - **Sales Trend Graph:** Rolling multi-month revenue curve and order volumes rendered via Recharts.
-  - **Order Status Distribution Chart:** Visual breakdown of fulfillment states (Delivered, Shipped, Processing, Cancelled).
-- **Interactive Global Search Bar:**
-  - Integrated in the top header with live debounced filtering across Customers, Orders, Products, and Support Tickets.
-  - Categorized dropdown navigation allowing 1-click jumps directly to target resources.
-- **Dynamic Event Notification Engine:**
-  - Replaced static dummy messages with real-time reactive alerts:
-    - **Low Stock Alerts:** Automatically triggered when any product inventory drops to $\le 10$ units.
-    - **Order Alerts & Ticket Escalations:** Live feed of incoming transactions.
-  - Individual notification dismissal and **"Mark all as read"** capability with `localStorage` persistence.
-- **CSV Data Export:** 1-click export of filtered orders and KPI summaries for financial auditing.
+### 3.1 Module 1: Executive Dashboard & Real-Time KPI Analytics
+* **Business Purpose:** Central nervous system for leadership to monitor sales velocity, fulfillment health, inventory risks, and customer acquisition.
+* **Key Capabilities:**
+  * **Accurate Metric Cards:** Live revenue computation (INR ₹), total order volume, and strictly bound customer count (`metrics.customers.totalActive = 5`).
+  * **Interactive Visualizations:** Rolling revenue trends and fulfillment donut charts rendered via Recharts.
+  * **Global Debounced Search:** Top-navigation fuzzy search across Customers, Orders, SKU Products, and Support Tickets.
+  * **Reactive Stock Alert Bell:** Emits alerts when inventory $\le 10$ units. Allows individual dismiss and one-click "Mark All as Read" with persistent state.
 
 ---
 
-### 3.2 Module 2: Customer 360 & Lifetime Intelligence
-- **Directory & Multi-Criteria Search:** Fast filtering by customer name, email, phone number, customer code (`CUST-XXXXX`), or corporate company name.
-- **Segmented Customer Cohorts:**
-  - `VIP`: High lifetime spenders ($>\text{₹}50,000$).
-  - `RETURNING`: Repeat buyers with multiple completed orders.
-  - `NEW`: First-time buyers.
-  - `INACTIVE`: Dormant customer accounts.
-- **Automated 1-Year Inactivity Rule:**
-  - Implemented automatic calculation: If a customer has no order or activity for $>365\text{ days}$ ($\text{Date.now}() - \text{lastActivity} > 1\text{ year}$), the system dynamically shifts their classification to **`INACTIVE`** with an amber tag (*Inactive >1 yr dormant*).
-  - Includes a dedicated **"Last Active"** column indicating exact days since last interaction (e.g. *Aug 14, 2025 • 456 days ago • Inactive*).
-  - Verified with live example data: Customer **Suresh Kumar** (`CUST-00105`, last active 14 Aug 2025).
-- **Customer 360 Drawer:** Slide-over profile revealing complete interaction history, lifetime spend, order list, and verified shipping/billing addresses.
-- **Standardized Address Handling:** Integrated Mongoose subdocument pre-validation hook to seamlessly normalize both structured address objects and raw legacy string addresses without validation crashes.
+### 3.2 Module 2: Customer 360 & Automated Dormancy Governance
+* **Business Purpose:** Complete customer demographic tracking, lifetime value (LTV) calculation, and retention intelligence.
+* **Key Capabilities:**
+  * **Automated 1-Year Dormancy Engine:** If $\text{Date.now}() - \text{lastActivity} > 365\text{ days}$, the system automatically demotes the customer to `INACTIVE` with a dormancy indicator (*e.g. Suresh Kumar, CUST-00105, 456 days inactive*).
+  * **Customer 360 Drawer:** Slide-over panel displaying past order history, total spent, support tickets opened, and staff notes.
+  * **Address Normalizer:** Mongoose subdocument pre-validation hook normalizing both structured address objects and raw legacy string addresses without crashes.
 
 ---
 
-### 3.3 Module 3: Leads & Sales Conversion Pipeline
-- **Visual Kanban & Tabular Pipeline:** Manages prospective buyers through standardized qualification stages:
-  $$\text{NEW} \longrightarrow \text{CONTACTED} \longrightarrow \text{QUALIFIED} \longrightarrow \text{PROPOSAL} \longrightarrow \text{WON / LOST}$$
-- **Deal Sizing & Probability:** Deals tracked with monetary value, win probabilities, expected close dates, and sales lead owners.
-- **1-Click Conversion:** Seamless conversion of `WON` leads into permanent customer documents in MongoDB with address migration.
+### 3.3 Module 3: Leads & Sales Conversion Pipeline (Kanban)
+* **Business Purpose:** B2B and wholesale prospective client acquisition workflow.
+* **Key Capabilities:**
+  * **Interactive Kanban Stages:** `NEW` $\rightarrow$ `CONTACTED` $\rightarrow$ `QUALIFIED` $\rightarrow$ `PROPOSAL` $\rightarrow$ `WON` / `LOST`.
+  * **Deal Sizing:** Assign monetary valuations, win probabilities, and sales reps to each deal.
+  * **1-Click Customer Conversion:** Moving a lead to `WON` triggers a modal to provision a permanent customer profile in MongoDB with address transfer.
 
 ---
 
-### 3.4 Module 4: Product Catalog & Stock Inventory
-- **SKU Catalog Management:** Centralized product records with SKU identifiers, title, category, stock quantities, and base pricing.
-- **Low Stock Early Warning System:**
-  - Live threshold watcher flagging items with $\le 10$ units available.
-  - Directly feeds warning notifications into the global header notification bell.
-- **Inventory Restocking Workflows:** Stock counts are automatically updated upon order fulfillment, order cancellation (restock), and approved return RMA processing.
+### 3.4 Module 4: Product Catalog & SKU Management
+* **Business Purpose:** Master catalog management for goods, pricing, categorization, and specifications.
+* **Key Capabilities:**
+  * **SKU Management:** Unique SKU enforcement (`PRD-XXXX`), category filtering, cost price vs selling price calculation.
+  * **Status Controls:** `ACTIVE`, `DRAFT`, `ARCHIVED` status toggles.
+  * **Validation Guards:** Strict price constraints ($>0$), SKU uppercase normalization, and image URL checks.
 
 ---
 
-### 3.5 Module 5: Orders, Fulfillment & Financial Gateway Receipts
-- **Complete Fulfillment Lifecycle:**
-  $$\text{PLACED} \rightarrow \text{CONFIRMED} \rightarrow \text{PROCESSING} \rightarrow \text{PACKED} \rightarrow \text{SHIPPED} \rightarrow \text{OUT\_FOR\_DELIVERY} \rightarrow \text{DELIVERED}$$
-- **Delivery Terminal State Protection:**
-  - Once an order reaches **`DELIVERED`** (or `CANCELLED`), the system **permanently hides the "Update" action button** in both the main orders table and the order drawer.
-  - Replaced with a static **`✓ Delivered (Finalized)`** badge to prevent accidental status modification of closed deliveries.
-- **Official Payment Gateway Receipt Generator (`GatewayReceiptModal`):**
-  - Resolved previous behavior where clicking "Gateway Receipt" erroneously re-opened the Razorpay payment checkout.
-  - Generates an official, printable Razorpay Gateway Settlement Receipt featuring:
-    - Verified **`PAID & SETTLED`** security stamp.
-    - Cryptographic Razorpay Transaction ID (UTR reference with 1-click clipboard copy).
-    - Merchant Account Identification (MID) & GSTIN.
-    - Customer details, itemized breakdown, and captured INR total.
-    - Native browser print support (`window.print()`).
-- **GST Tax Invoicing:** Formats enterprise tax invoices with CGST/SGST tax breakdowns and customer billing addresses.
-- **Storefront Purchase Simulator:** Built-in modal to simulate customer-facing storefront orders for testing payment gateway flows.
+### 3.5 Module 5: Warehouse Inventory & Stock Movement Ledger
+* **Business Purpose:** Multi-warehouse inventory stock tracking and physical inventory audit trail.
+* **Key Capabilities:**
+  * **Threshold Monitoring:** Automated flags when `availableStock <= lowStockThreshold` (default: 10 units).
+  * **Stock Movement Ledger:** Immutable history recording every `RESTOCK`, `ORDER_SALE`, `ADJUSTMENT`, `RETURN_RESTOCK`, and `DAMAGED_WRITE_OFF` with delta quantities and authorizing employee.
 
 ---
 
-### 3.6 Module 6: Returns, Replacements & Razorpay Refund Gateway (RMA)
-The Returns module implements an after-sales inspection and refund governance pipeline.
+### 3.6 Module 6: Orders, Fulfillment & Delivery Terminal Lock
+* **Business Purpose:** End-to-end sales order management from checkout to doorstep delivery.
+* **Key Capabilities:**
+  * **Fulfillment Pipeline:** `PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `PROCESSING` $\rightarrow$ `SHIPPED` $\rightarrow$ `DELIVERED`.
+  * **Delivered Terminal State Lock:** Once marked `DELIVERED` (or `CANCELLED`), the "Update" action button is permanently hidden and replaced with `✓ Delivered (Finalized)` to safeguard closed deliveries.
+  * **Storefront Checkout Simulator:** Integrated simulator to create and verify customer orders and test gateway flows.
+
+---
+
+### 3.7 Module 7: Payment Gateway Integration & Settlement Receipts
+* **Business Purpose:** Cryptographic payment handling, automated transaction verification, and official customer invoicing.
+* **Key Capabilities:**
+  * **Official Gateway Receipt Modal (`GatewayReceiptModal.jsx`):** Generates official Razorpay settlement receipts featuring:
+    * Verified `PAID & SETTLED` security watermark.
+    * Razorpay Payment Transaction ID (UTR reference with 1-click clipboard copy).
+    * Merchant Identification (MID), GSTIN, itemized billing, and captured total.
+    * Native browser printing (`window.print()`).
+  * **Idempotency Protection:** Unique transaction idempotency keys to prevent duplicate captures during network retries.
+
+---
+
+### 3.8 Module 8: Returns, Reverse Logistics & Razorpay Refund Gateway (RMA)
+* **Business Purpose:** Physical package return inspection, quality assessment, and automated financial refunds.
+* **Key Capabilities:**
+  * **RMA Creation Modal:** Direct RMA initiation from order numbers with auto-filled items and refund sums.
+  * **Warehouse Inspection Verdict:** Inspect package, evaluate condition (`OPENED_EXCELLENT`, `DEFECTIVE_FACTORY`, etc.), and input physical inspection notes.
+  * **Instant Razorpay Refund Settlement:** Approving refund triggers the Razorpay refund gateway and updates the parent order to `REFUNDED`.
+  * **Clean Rejection Purge:** Rejecting a return immediately removes the rejected record from the active returns dashboard.
+  * **Persistent Action Availability:** The "Inspect / Change Verdict" button remains accessible at all times for audit reviews.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Customer as Customer / Support
     actor Staff as Warehouse Inspector
-    participant App as EntryKode CRM
-    participant Rzp as Razorpay Gateway
+    participant CRM as EntryKode CRM
+    participant Rzp as Razorpay Refund API
     participant DB as MongoDB
 
-    Customer->>App: Initiate Return RMA (Order Ref, Reason, Amount)
-    App->>DB: Save RMA (Status: INSPECTION_PENDING)
-    Staff->>App: Open "Inspect Return" Modal
-    Note over Staff: Physical package arrives at dock
-    Staff->>App: Enter Notes & Physical Verdict
+    Customer->>CRM: Submit Return RMA Request
+    CRM->>DB: Save Return (Status: PENDING_INSPECTION)
+    Staff->>CRM: Click "Inspect Return"
+    Staff->>CRM: Enter physical evaluation notes
     alt Verdict: Approve Refund
-        Staff->>App: Click "Approve Refund (Razorpay)"
-        App->>Rzp: Execute Instant Gateway Refund
-        App->>DB: Status -> REFUND_APPROVED, Log Audit History
-        App->>DB: Sync Order Status -> REFUNDED
-        App-->>Staff: Success: Refund settled & Order synced
+        Staff->>CRM: Click "Approve Refund (Razorpay)"
+        CRM->>Rzp: Execute Instant Gateway Refund API
+        CRM->>DB: Update Return -> REFUND_APPROVED
+        CRM->>DB: Update Order -> REFUNDED
+        CRM-->>Staff: Official Settlement Confirmed
     else Verdict: Reject Request
-        Staff->>App: Click "Reject Request"
-        App->>DB: Mark REJECTED & Delete from active returns
-        App-->>Staff: Removed completely from returns dashboard
+        Staff->>CRM: Click "Reject Request"
+        CRM->>DB: Update Return -> REJECTED
+        CRM->>CRM: Purge from active dashboard view
+        CRM-->>Staff: Dashboard view cleaned
     end
 ```
 
-- **"Create Return Request (RMA)" Action:** Added direct RMA initiation in the Returns header; selecting an order number automatically populates customer details, items, and refund amount.
-- **Pre-Populated Inspection Data:** Inspecting an existing return automatically pre-fills its saved inspection notes and verdict rather than showing static defaults.
-- **Audit History Trail:** Every return record maintains a chronological audit history tracking:
-  - Action taken (*Return RMA Initiated*, *Refund Approved*, *Re-Opened for Inspection*).
-  - Inspector name (e.g. *Sanjay D*).
-  - Detailed inspection notes and timestamp.
-- **Clean Dashboard Rejection:**
-  - As per operational requirements, once a return request is marked as **`Reject Request`**, the record is **completely removed from the active returns dashboard**, keeping the view clean.
-- **Permanent Button Availability:** The "Inspect Return" / "Inspect / Change Verdict" button remains active and clickable at all times.
+---
+
+### 3.9 Module 9: Customer Support Ticket Threads & Escalations
+* **Business Purpose:** Omnichannel customer grievance redressal desk.
+* **Key Capabilities:**
+  * **Chronological Conversation Threads:** Unified customer-agent interaction log.
+  * **Direct RMA Escalation Link:** Returns-related tickets display an escalation banner with a direct `Go to Returns ➔` navigation shortcut.
+  * **SLA Priority Queue:** Urgency classification (`URGENT`, `HIGH`, `MEDIUM`, `LOW`) with assigned support agents.
 
 ---
 
-### 3.7 Module 7: Support Ticket Threads & Escalations
-- **Grievance Resolution Desk:** Centralized customer ticketing categorizing inquiries into Delivery, Product Defects, Returns, and Payments.
-- **Chronological Conversation Threads:** Complete chat history between customers and support agents, preventing repeated explanations.
-- **Direct Returns Escalation Link:**
-  - Ticket threads involving returns/refunds display an integrated banner: **"Return & Refund Request Escalation"**.
-  - Includes a 1-click **`Go to Returns ➔`** shortcut that immediately routes the agent to the Returns & Refunds module.
-- **SLA & Priority Tracking:** High, Medium, and Low urgency classification with assigned employee routing.
-
----
-
-### 3.8 Module 8: Marketing & Customer Campaigns
-- **Multi-Channel Promotional Broadcasting:** Launch campaigns across Email (Nodemailer), SMS, and WhatsApp Business API.
-- **Interactive Campaign Lifecycle Management:**
-  - Supported states:
+### 3.10 Module 10: Targeted Marketing Campaigns & 4-Stage Lifecycle
+* **Business Purpose:** Customer engagement broadcasts across Email (Nodemailer), SMS, and WhatsApp.
+* **Key Capabilities:**
+  * **4-Stage Lifecycle Controls:** Direct 1-click state transitions:
     $$\text{SCHEDULED (Draft)} \longleftrightarrow \text{ACTIVE (Broadcasting)} \longleftrightarrow \text{PAUSED} \longleftrightarrow \text{COMPLETED (Finished)}$$
-  - Each campaign card features direct 1-click status controls:
-    - **Active Campaign:** One-click **"Mark Completed"** or **"Pause"**.
-    - **Completed Campaign:** One-click **"Re-Activate / Broadcast Again"**.
-    - **Paused Campaign:** One-click **"Resume Broadcast"**.
-  - Status selector dropdown on each card for manual overrides.
-  - Initial launch configuration: Choose between *Launch Immediately (ACTIVE)* or *Schedule for Later (SCHEDULED)*.
-- **Conversion Metrics:** Live tracking of recipient reach, open rates, click-through rates, and attributed gross merchandise value (GMV).
+  * **Card Actions:** "Mark Completed", "Pause", "Resume Broadcast", or "Re-Activate / Broadcast Again".
+  * **Audience Segmentation:** Target VIP, Returning, or Inactive customer cohorts.
 
 ---
 
-### 3.9 Module 9: Employee Tasks & Operational Activity Tracker
-- **Task Delegation:** Assign warehouse checks, supplier follow-ups, and customer reconciliations to specific team members.
-- **0ms Instant Reactive Checkbox Toggle:**
-  - Re-architected with optimistic local state (`localTasks`). Clicking the task checkbox (or pressing Space/Enter) immediately updates the UI with zero network lag:
-    - Strikethrough text styling applied instantly.
-    - Green **"Done"** badge displayed.
-    - Instant feedback toast displayed (*Task marked as Completed!*).
-  - Normalized string ID matching (`String(t.id || t._id) === String(targetId)`) to flawlessly handle both MongoDB ObjectIds and mock string keys.
-  - Asynchronous background synchronization to MongoDB (`PUT /tasks/:id`) and `localStorage`.
-- **Status Filter Tabs:** Switch effortlessly between *All Tasks*, *Pending / In Progress*, and *Completed*.
+### 3.11 Module 11: Team Tasks & 0ms Reactive Deliverable Tracker
+* **Business Purpose:** Internal operational task delegation and accountability.
+* **Key Capabilities:**
+  * **0ms Instant Checkbox Reactivity:** Re-engineered with optimistic local state. Clicking the checkbox toggles completion instantly without waiting for network roundtrips.
+  * **ID Normalization:** String conversion (`String(id)`) ensures seamless matching for both MongoDB ObjectIds and mock data.
+  * **Filter Views:** Effortless switching between *All Tasks*, *Pending / In Progress*, and *Completed*.
 
 ---
 
-### 3.10 Module 10: Security, RBAC & Enterprise Form Validation
+### 3.12 Module 12: Business Intelligence, Analytics & Financial Export
+* **Business Purpose:** Executive reporting, sales velocity metrics, and compliance auditing.
+* **Key Capabilities:**
+  * **Revenue Analytics:** Monthly comparisons, Average Order Value (AOV), and customer acquisition trends.
+  * **CSV Export Engine:** Instant 1-click download of filtered order datasets for accountants and auditors.
 
-#### A. Role-Based Access Control (RBAC) Matrix
-The application strictly enforces a 4-tier permission hierarchy:
+---
 
-| Module / Permission | Super Admin | Admin | Sales Employee | Support Employee |
+### 3.13 Module 13: Staff, Employees & 4-Tier RBAC Management
+* **Business Purpose:** Enterprise identity governance and role provisioning.
+* **Key Capabilities:**
+  * **Granular RBAC Hierarchy:** Strict partitioning across `SUPER_ADMIN`, `ADMIN`, `SALES_MANAGER`, and `SUPPORT_MANAGER`.
+  * **Employee Provisioning:** Admin modal to invite team members, assign departments, and configure credentials.
+
+| Feature / Module | Super Admin | Admin | Sales Manager | Support Manager |
 | :--- | :---: | :---: | :---: | :---: |
-| **Dashboard & Business KPIs** | Full Access | Full Access | Full Access | Full Access |
-| **Customers (Read / Create / Edit)** | Full Access | Full Access | Full Access | Read Only |
-| **Leads & Sales Pipeline** | Full Access | Full Access | Full Access | No Access |
-| **Products Catalog** | Full Access | Full Access | Read Only | Read Only |
-| **Orders & Fulfillment** | Full Access | Full Access | Create & Update | View & Update |
-| **Returns & Refunds Gateway** | Full Access | Full Access | View & Inspect | Full Process |
-| **Support Tickets & Threads** | Full Access | Full Access | View Only | Full Process |
+| **Executive Dashboard & KPIs** | Full Access | Full Access | Full Access | Full Access |
+| **Customer 360 & Profiles** | Full Access | Full Access | Full Access | Read Only |
+| **Leads & Sales Kanban** | Full Access | Full Access | Full Access | No Access |
+| **Product Catalog** | Full Access | Full Access | Read Only | Read Only |
+| **Orders & Gateway Receipts** | Full Access | Full Access | Create & Update | View & Update |
+| **Returns & Razorpay Refunds** | Full Access | Full Access | View Only | Full Process |
+| **Support Ticket Threads** | Full Access | Full Access | View Only | Full Process |
 | **Marketing Campaigns** | Full Access | Full Access | No Access | No Access |
 | **Employee Tasks & Activities** | Full Access | Full Access | Assigned Only | Assigned Only |
-| **User & Staff Management** | Full Access | Full Access | No Access | No Access |
-| **Company Settings & Audit Logs** | Full Access | No Access | No Access | No Access |
-
-#### B. Enterprise Field Requirements Validation Box (`FieldRequirementsBox`)
-To ensure zero data corruption, custom validation checklists styled in an enterprise light-blue container (`bg-[#eef6fc] border border-[#bcdbf5] text-[#1e5a8a]`) were deployed across all forms:
-- **Password:** Minimum 8 characters, maximum 18 characters, uppercase and lowercase letters, numeric or symbol characters, no spaces or unicode.
-- **Name:** Minimum 3 characters, alphabets and spaces only (no numbers or special characters).
-- **Account Number:** Exactly 9 to 18 numeric digits.
-- **Phone Number:** Exactly 10 digits starting with valid Indian telecom digits (6, 7, 8, 9).
-- **PIN Code:** Exactly 6 numeric digits.
-- **Email:** Standard RFC-compliant email address format.
-- **Integrated Across:** Signup Page, Add Employee Modal, Customer Profile Form, and Manual Order Creation Modal.
+| **Employee Management** | Full Access | Full Access | No Access | No Access |
+| **Settings & Audit Logs** | Full Access | No Access | No Access | No Access |
 
 ---
 
-## 4. Database Schema Specifications
+### 3.14 Module 14: System Settings, Security & Field Requirements Box
+* **Business Purpose:** System-wide configuration, security policies, and form validation compliance.
+* **Key Capabilities:**
+  * **Enterprise Field Requirements Box (`FieldRequirementsBox.jsx`):** Deployment of an enterprise validation banner styled in light-blue (`bg-[#eef6fc] border-[#bcdbf5] text-[#1e5a8a]`):
+    * **Password:** 8–18 characters, uppercase & lowercase, numeric/symbol, no unicode or spaces.
+    * **Name:** Minimum 3 characters, alphabets and spaces only.
+    * **Account Number:** 9 to 18 numeric digits.
+    * **Phone Number:** Exactly 10 digits starting with valid Indian digits (6, 7, 8, 9).
+    * **PIN Code:** Exactly 6 numeric digits.
+    * **Email:** RFC-compliant format.
 
-The MongoDB database (`mongodb://127.0.0.1:27017/ecommerce_crm`) enforces strict Mongoose schemas with indexed lookup fields:
+---
+
+### 3.15 Module 15: Immutable Audit Logging & Compliance Ledger
+* **Business Purpose:** Immutable compliance and forensic tracking for enterprise security.
+* **Key Capabilities:**
+  * **Tamper-Evident Records:** Automatic logging of every critical operation (Logins, Refunds, Order Status Changes, Customer Edits, Role Changes).
+  * **Contextual Audit Metadata:** Stores actor ID, actor name, action verb, affected entity ID, IP address, and timestamp.
+
+---
+
+## 4. Exhaustive Database Model Specifications (All 13 Models)
+
+The backend runs on MongoDB (`mongodb://127.0.0.1:27017/ecommerce_crm`) via Mongoose ODM. Below is the structural specification for all 13 models:
 
 ```mermaid
 erDiagram
-    USERS ||--o{ TASKS : assigns
-    CUSTOMERS ||--o{ ORDERS : places
-    ORDERS ||--|{ ORDER_ITEMS : contains
-    ORDERS ||--o{ RETURNS : generates
-    CUSTOMERS ||--o{ TICKETS : opens
-    PRODUCTS ||--o{ INVENTORY : tracks
-    CAMPAIGNS }|--|{ CUSTOMERS : targets
+    User ||--o{ Task : "assigned to"
+    User ||--o{ AuditLog : "performed by"
+    Customer ||--o{ Order : "places"
+    Customer ||--o{ SupportTicket : "opens"
+    Order ||--|{ OrderItem : "contains"
+    Order ||--o{ Payment : "settled by"
+    Order ||--o{ Return : "initiates"
+    Product ||--|| Inventory : "tracked in"
+    Product ||--o{ StockMovement : "audited via"
+    Campaign }|--|{ Customer : "broadcasts to"
+    Lead ||--o| Customer : "converts into"
 
-    USERS {
-        ObjectId _id
-        string email
+    User {
+        ObjectId _id PK
+        string email UK
         string password
         string role
         string firstName
         string lastName
+        boolean isActive
     }
-    CUSTOMERS {
-        ObjectId _id
-        string customerCode
+    Customer {
+        ObjectId _id PK
+        string customerCode UK
         string firstName
         string lastName
-        string email
+        string email UK
         string phone
-        string customerType
-        Date lastOrderDate
+        string segment
+        Date lastActivityDate
+        array addresses
     }
-    ORDERS {
-        ObjectId _id
-        string orderNumber
-        ObjectId customer
+    Lead {
+        ObjectId _id PK
+        string leadCode UK
+        string contactName
+        string companyName
+        string status
+        number dealValue
+        number probability
+    }
+    Product {
+        ObjectId _id PK
+        string sku UK
+        string name
+        string category
+        number pricePaise
+        number costPricePaise
+        string status
+    }
+    Inventory {
+        ObjectId _id PK
+        ObjectId product FK
+        string sku UK
+        number availableStock
+        number reservedStock
+        number lowStockThreshold
+    }
+    StockMovement {
+        ObjectId _id PK
+        ObjectId product FK
+        string type
+        number quantityDelta
+        number previousStock
+        number newStock
+        ObjectId performedBy FK
+    }
+    Order {
+        ObjectId _id PK
+        string orderNumber UK
+        ObjectId customer FK
         string orderStatus
         string paymentStatus
         number totalAmountPaise
-        Date placedAt
+        string razorpayPaymentId
+        boolean isLocked
     }
-    RETURNS {
-        ObjectId _id
-        string rmaNumber
-        ObjectId order
+    Payment {
+        ObjectId _id PK
+        ObjectId order FK
+        ObjectId customer FK
+        string transactionId UK
+        string idempotencyKey UK
+        string gateway
+        number amountPaise
+        string status
+    }
+    Return {
+        ObjectId _id PK
+        string rmaNumber UK
+        ObjectId order FK
         string status
         number totalRefundRequestedPaise
+        string inspectionVerdict
         array timeline
     }
-    TICKETS {
-        ObjectId _id
-        string ticketNumber
-        ObjectId customer
+    SupportTicket {
+        ObjectId _id PK
+        string ticketNumber UK
+        ObjectId customer FK
         string subject
-        string status
         string priority
+        string status
         array messages
+    }
+    Campaign {
+        ObjectId _id PK
+        string name
+        string channel
+        string status
+        number audienceCount
+        string contentHtml
+    }
+    Task {
+        ObjectId _id PK
+        string title
+        ObjectId assignedTo FK
+        string priority
+        string status
+        Date dueDate
+    }
+    AuditLog {
+        ObjectId _id PK
+        ObjectId actor FK
+        string actorName
+        string action
+        string entity
+        string entityId
+        string details
+        string ipAddress
     }
 ```
 
+### Detailed Model Directory:
+
+1. **`User` (`backend/src/modules/users/user.model.js`):**
+   * Fields: `email` (Unique, Lowercase), `password` (BCrypt hashed, 10 rounds), `role` (`SUPER_ADMIN`, `ADMIN`, `SALES_MANAGER`, `SUPPORT_MANAGER`), `firstName`, `lastName`, `department`, `isActive` (Boolean).
+2. **`Customer` (`backend/src/modules/customers/customer.model.js`):**
+   * Fields: `customerCode` (Unique, e.g. `CUST-00101`), `firstName`, `lastName`, `email`, `phone`, `segment` (`VIP`, `RETURNING`, `NEW`, `INACTIVE`), `totalSpentPaise`, `lastActivityDate`, `addresses` (Subdocument array: street, city, state, postalCode, country), `notes` (Subdocument array).
+3. **`Lead` (`backend/src/modules/leads/lead.model.js`):**
+   * Fields: `leadCode` (Unique), `contactName`, `companyName`, `email`, `phone`, `status` (`NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `WON`, `LOST`), `dealValue`, `probability` (0–100), `assignedTo` (User Ref).
+4. **`Product` (`backend/src/modules/products/product.model.js`):**
+   * Fields: `sku` (Unique, Uppercase), `name`, `description`, `category`, `pricePaise`, `costPricePaise`, `status` (`ACTIVE`, `DRAFT`, `ARCHIVED`), `images` (Array).
+5. **`Inventory` (`backend/src/modules/inventory/inventory.model.js`):**
+   * Fields: `product` (Product Ref, Unique), `sku`, `availableStock`, `reservedStock`, `soldQuantity`, `lowStockThreshold` (Default: 10), `warehouseLocation`.
+6. **`StockMovement` (`backend/src/modules/inventory/stockMovement.model.js`):**
+   * Fields: `product` (Product Ref), `sku`, `type` (`RESTOCK`, `ORDER_SALE`, `ADJUSTMENT`, `RETURN_RESTOCK`, `DAMAGED_WRITE_OFF`), `quantityDelta`, `previousStock`, `newStock`, `reason`, `referenceId`, `performedBy` (User Ref).
+7. **`Order` (`backend/src/modules/orders/order.model.js`):**
+   * Fields: `orderNumber` (Unique, Uppercase), `customer` (Customer Ref), `items` (Subdocument array: product, sku, name, unitPricePaise, quantity, totalPricePaise), `totalAmountPaise`, `taxAmountPaise`, `shippingAmountPaise`, `orderStatus` (`PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`), `paymentStatus` (`PENDING`, `PAID`, `REFUNDED`), `razorpayPaymentId`, `shippingAddress`, `statusHistory`.
+8. **`Payment` (`backend/src/modules/payments/payment.model.js`):**
+   * Fields: `order` (Order Ref), `customer` (Customer Ref), `transactionId` (Unique), `idempotencyKey` (Unique), `gateway` (`RAZORPAY`, `COD`, `UPI`), `amountPaise`, `currency` (`INR`), `status` (`INITIATED`, `AUTHORIZED`, `SUCCESS`, `FAILED`, `REFUNDED`), `rawGatewayResponse`.
+9. **`Return` (`backend/src/modules/returns/return.model.js`):**
+   * Fields: `rmaNumber` (Unique), `order` (Order Ref), `items` (Subdocument array: product, sku, quantity, reason, itemCondition), `status` (`PENDING_INSPECTION`, `INSPECTION_IN_PROGRESS`, `REFUND_APPROVED`, `REPLACEMENT_APPROVED`, `REJECTED`), `totalRefundRequestedPaise`, `inspectionNotes`, `inspector` (User Ref), `timeline`.
+10. **`SupportTicket` (`backend/src/modules/support/support.model.js`):**
+    * Fields: `ticketNumber` (Unique), `customer` (Customer Ref), `subject`, `category` (`ORDER_ISSUE`, `RETURN_REFUND`, `PRODUCT_DEFECT`, `PAYMENT_GATEWAY`), `priority` (`LOW`, `MEDIUM`, `HIGH`, `URGENT`), `status` (`OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED`), `assignedTo` (User Ref), `messages` (Array: sender, senderType, content, timestamp).
+11. **`Campaign` (`backend/src/modules/campaigns/campaign.model.js`):**
+    * Fields: `name`, `channel` (`EMAIL`, `SMS`, `WHATSAPP`), `status` (`SCHEDULED`, `ACTIVE`, `PAUSED`, `COMPLETED`), `audienceSegment` (`VIP`, `RETURNING`, `INACTIVE`, `ALL`), `subject`, `contentHtml`, `sentCount`, `openCount`, `clickCount`, `scheduledAt`.
+12. **`Task` (`backend/src/modules/tasks/task.model.js`):**
+    * Fields: `title`, `description`, `assignedTo` (User Ref), `assignedToName`, `priority` (`LOW`, `MEDIUM`, `HIGH`), `status` (`TODO`, `IN_PROGRESS`, `COMPLETED`), `dueDate`, `isCompleted` (Boolean).
+13. **`AuditLog` (`backend/src/modules/auditLogs/auditLog.model.js`):**
+    * Fields: `actor` (User Ref), `actorName`, `action` (Uppercase verb), `entity` (`ORDER`, `RETURN`, `CUSTOMER`, `USER`, `PAYMENT`), `entityId`, `details`, `ipAddress`, `metadata`.
+
 ---
 
-## 5. Quality Assurance, Build & Verification Results
+## 5. Complete REST API Contract Directory
 
-### 5.1 Build Verification
-Production builds were executed and verified locally with zero errors:
-```bash
-> ecommerce-crm-frontend@1.0.0 build
-> vite build
+| Module | Method | Endpoint Path | Description & RBAC Guard |
+| :--- | :---: | :--- | :--- |
+| **Auth** | `POST` | `/api/v1/auth/login` | Authenticate user, issue signed JWT token |
+| **Auth** | `POST` | `/api/v1/auth/signup` | Register new employee profile with validation box |
+| **Auth** | `GET` | `/api/v1/auth/me` | Fetch active user context & granted permissions |
+| **Dashboard**| `GET` | `/api/v1/reports/dashboard` | Fetch deterministic real-time business KPIs & revenue curves |
+| **Customers**| `GET` | `/api/v1/customers` | Query customer list with dormancy indicators |
+| **Customers**| `POST` | `/api/v1/customers` | Create new customer document with standardized address |
+| **Customers**| `GET` | `/api/v1/customers/:id` | Fetch Customer 360 profile & transaction history |
+| **Leads** | `GET` | `/api/v1/leads` | Retrieve sales leads grouped by qualification stage |
+| **Leads** | `PUT` | `/api/v1/leads/:id/stage`| Update lead stage & trigger customer conversion |
+| **Products** | `GET` | `/api/v1/products` | Retrieve catalog with stock inventory count |
+| **Products** | `POST` | `/api/v1/products` | Provision new SKU record with price validation |
+| **Inventory**| `GET` | `/api/v1/inventory/low-stock` | Retrieve SKU items below safety threshold ($\le 10$) |
+| **Inventory**| `POST` | `/api/v1/inventory/movement` | Record stock adjustment into immutable audit ledger |
+| **Orders** | `GET` | `/api/v1/orders` | Query fulfillment orders with status & payment info |
+| **Orders** | `POST` | `/api/v1/orders` | Place new customer order & reserve warehouse stock |
+| **Orders** | `PUT` | `/api/v1/orders/:id/status`| Progress fulfillment stage (Blocked if `DELIVERED`) |
+| **Payments** | `POST` | `/api/v1/payments/verify` | Verify cryptographic Razorpay signature & issue receipt |
+| **Returns** | `GET` | `/api/v1/returns` | Fetch active RMA requests (Excludes `REJECTED`) |
+| **Returns** | `POST` | `/api/v1/returns` | Create new Return Merchandise Authorization (RMA) |
+| **Returns** | `PUT` | `/api/v1/returns/:id/inspect`| Record physical inspection verdict & refund approval |
+| **Support** | `GET` | `/api/v1/support/tickets` | Retrieve customer grievance ticket queue |
+| **Support** | `POST` | `/api/v1/support/tickets/:id/messages`| Send message in ticket conversation thread |
+| **Campaigns**| `GET` | `/api/v1/campaigns` | Retrieve marketing campaigns with performance stats |
+| **Campaigns**| `PUT` | `/api/v1/campaigns/:id/status`| 1-Click status toggle (`ACTIVE` / `PAUSED` / `COMPLETED`) |
+| **Tasks** | `GET` | `/api/v1/tasks` | Fetch operational team tasks with status filter |
+| **Tasks** | `PUT` | `/api/v1/tasks/:id` | Toggle task completion status with 0ms reactivity |
+| **Employees**| `GET` | `/api/v1/users` | List organization staff & RBAC role assignments |
+| **Settings** | `GET` | `/api/v1/audit-logs` | Query tamper-evident system audit trail (Super Admin only)|
 
-vite v5.4.21 building for production...
-transforming...
-✓ 2659 modules transformed.
-rendering chunks...
-computing gzip size...
-dist/index.html                   1.13 kB │ gzip:   0.55 kB
-dist/assets/index-DgvXLgsh.css   47.79 kB │ gzip:   8.37 kB
-dist/assets/icons-C21KKtmE.js    32.20 kB │ gzip:   6.02 kB
-dist/assets/state-Bx7kTSPW.js    65.39 kB │ gzip:  21.30 kB
-dist/assets/vendor-CYjEvmcz.js  163.90 kB │ gzip:  53.46 kB
-dist/assets/charts-DyT69TjC.js  424.12 kB │ gzip: 114.11 kB
-dist/assets/index-DP_5pLDo.js   425.63 kB │ gzip: 111.50 kB
-✓ built in 5.28s
+---
+
+## 6. Resolved Technical Challenges & Bug Fix Log
+
+1. **Dashboard Heuristic Metric Discrepancy:**
+   * *Problem:* Active customers displayed 6 instead of the true MongoDB database count of 5.
+   * *Resolution:* Cleansed unneeded seed record; bound metric card directly to `metrics.customers.totalActive`.
+2. **Returns Module Clutter on Rejection:**
+   * *Problem:* Rejected returns remained on the dashboard, displaying duplicate audit logs.
+   * *Resolution:* Re-engineered `handleRejectReturn` to instantly purge rejected records from the active view.
+3. **Gateway Payment Receipt Loop:**
+   * *Problem:* Clicking "Gateway Receipt" erroneously re-opened the Razorpay payment checkout modal.
+   * *Resolution:* Engineered `GatewayReceiptModal.jsx` displaying an official Razorpay settlement receipt with UTR, merchant credentials, itemization, and browser print capability.
+4. **Delivered Status Tampering:**
+   * *Problem:* Orders marked `DELIVERED` still exposed the "Update" action button.
+   * *Resolution:* Applied strict `!['DELIVERED', 'CANCELLED'].includes(status)` guard in both table and drawer.
+5. **Customer 1-Year Dormancy Engine:**
+   * *Problem:* Customers inactive for $>1\text{ year}$ were not automatically marked inactive.
+   * *Resolution:* Added dynamic `getComputedSegment` calculating dormancy if $\text{Date.now}() - \text{lastActivity} > 365\text{ days}$. Added verified test customer Suresh Kumar (`CUST-00105`).
+6. **Task Checkbox Reactivity Lag:**
+   * *Problem:* Clicking task checkboxes was sluggish and occasionally unresponsive due to ObjectId type mismatches.
+   * *Resolution:* Deployed optimistic local state reconciliation (`localTasks`) and string ID normalization (`String(id)`) for 0ms instantaneous toggling.
+7. **Campaign Lifecycle Locking:**
+   * *Problem:* Campaigns could not transition between Scheduled, Active, Paused, and Completed.
+   * *Resolution:* Added one-click lifecycle control buttons and status dropdown overrides directly onto each campaign card.
+
+---
+
+## 7. GitHub Hosting & Live GitHub Pages Deployment Guide
+
+### 7.1 How to Host on GitHub Pages (Live in 60 Seconds)
+The documentation is bundled as a standalone web application inside the **`/docs`** directory of this repository (`docs/index.html`).
+
+To publish this documentation live to the web on GitHub:
+1. Open your repository on GitHub:  
+   `https://github.com/sanjaydinakaran29112004/Ecommerce-CRM`
+2. Click **Settings** (top navigation bar of your GitHub repo).
+3. In the left sidebar, click **Pages** (under "Code and automation").
+4. Under **Build and deployment** $\rightarrow$ **Branch**:
+   - Select Branch: **`develop`** (or **`main`**).
+   - Select Folder: **`/docs`** (root is default, switch dropdown to `/docs`).
+5. Click **Save**.
+6. Within 60 seconds, GitHub publishes your live documentation website at:  
+   **`https://sanjaydinakaran29112004.github.io/Ecommerce-CRM/`**
+
+---
+
+### 7.2 Push to GitHub Command
+To ensure both `main` and `develop` branches are synchronized on GitHub, execute:
+
+```powershell
+git push origin main develop
 ```
-
-### 5.2 Resolved Issues & Bug Fix Log
-
-| # | Bug / Requirement Reported | Root Cause | Engineering Solution |
-| :--- | :--- | :--- | :--- |
-| **1** | Dashboard crashed with `ROLE_LABELS is not defined`. | Unreferenced config export in greeting widget. | Imported `ROLE_LABELS` and added `safeLabels` fallback object in `DashboardPage.jsx`. |
-| **2** | Active Customers count displayed 6 instead of 5. | Test customer in DB + heuristic override based on order emails. | Cleaned test DB record; bound count directly to `metrics.customers.totalActive`. |
-| **3** | Returns rejection left clutter on active view. | Rejected returns remained in active view with repeating history. | Updated `handleRejectReturn` to purge rejected records completely from the active dashboard. |
-| **4** | "Gateway Receipt" opened Razorpay checkout instead of receipt. | Re-used checkout modal state for receipt button. | Engineered dedicated `GatewayReceiptModal.jsx` displaying official UTR settlement receipt. |
-| **5** | Delivered orders showed "Update" button. | Missing terminal state guard on action buttons. | Added `!['DELIVERED', 'CANCELLED'].includes(status)` guard in table and drawer. |
-| **6** | Customer $>1$ year inactive not marked inactive. | Static segment strings without date computation. | Added dynamic `getComputedSegment` calculating dormancy if $>365$ days since last order. |
-| **7** | Campaign status could not be changed to Complete/Active. | Static cards lacking status update mutation. | Added interactive lifecycle controls, one-click action buttons, and dropdown selectors. |
-| **8** | Task checkbox click performed no action. | Type mismatch (`ObjectId` vs string) and slow network roundtrip. | Implemented optimistic local state with 0ms reactivity and string ID normalization. |
-
----
-
-## 6. Local Execution Guide
-
-To run the entire system locally:
-
-### Option A: 1-Click Batch Runner
-Double-click `start-crm.bat` in the project root directory (`D:\EntryKode`). It automatically launches MongoDB, starts the backend Express API on port 5000, and opens the frontend Vite server on port 5173.
-
-### Option B: Manual Terminal Execution
-```bash
-# Terminal 1: Backend API
-cd D:\EntryKode\backend
-npm run dev
-
-# Terminal 2: Frontend Client
-cd D:\EntryKode\frontend
-npm run dev
-```
-- **Frontend URL:** `http://localhost:5173`
-- **Backend API:** `http://localhost:5000/api/v1`
-- **Database:** `mongodb://127.0.0.1:27017/ecommerce_crm`
-
----
-
-## 7. Conclusion & Next Steps
-
-The **EntryKode E-Commerce CRM Suite** is fully stabilized, rigorously verified, and ready for team review and production deployment. All modules operate with end-to-end data integrity, robust RBAC guards, and reactive user interfaces.
-
-**Recommended Future Roadmap:**
-1. **Automated Webhooks:** Inbound Razorpay webhook listener for background chargeback and settlement processing.
-2. **Multi-Warehouse Routing:** Automatic inventory allocation based on customer shipping postal codes.
-3. **AI Chatbot Bridge:** Integration of automated first-line support ticket responses using Gemini LLM APIs.
+*(Or push all branches simultaneously: `git push --all origin`)*

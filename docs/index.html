@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EntryKode CRM — Master Project Report & Technical Blueprint</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'loose' });
+  </script>
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: #111827;
+      --bg-card-hover: #1F2937;
+      --border-color: #1F2937;
+      --primary: #4F46E5;
+      --primary-light: #6366F1;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --accent-green: #10B981;
+      --accent-amber: #F59E0B;
+      --accent-rose: #F43F5E;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.6;
+      display: flex;
+    }
+    a { color: var(--primary-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: 'JetBrains Mono', monospace; background: #1E293B; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #38BDF8; }
+    pre code { background: none; padding: 0; }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      background: #090D16;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar-header h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-status {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-top: 8px;
+    }
+    .sidebar-search {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .sidebar-search input {
+      width: 100%;
+      background: #111827;
+      border: 1px solid #374151;
+      padding: 8px 12px;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.85rem;
+    }
+    .sidebar-nav {
+      padding: 16px;
+      flex: 1;
+    }
+    .nav-group-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6B7280;
+      font-weight: 700;
+      margin: 16px 8px 8px;
+    }
+    .nav-link {
+      display: block;
+      padding: 7px 12px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      transition: all 0.15s ease;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: #fff;
+      background: var(--bg-card-hover);
+      text-decoration: none;
+    }
+    
+    /* Main Content */
+    .content {
+      flex: 1;
+      padding: 48px 64px;
+      max-width: 1100px;
+      overflow-x: hidden;
+    }
+    .hero {
+      margin-bottom: 40px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .hero h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.025em;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 800px;
+    }
+    .meta-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .meta-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    .meta-item strong { color: #fff; }
+    
+    /* Cards and Sections */
+    section { margin-bottom: 64px; }
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #E0E7FF;
+      margin: 28px 0 12px;
+    }
+    p, ul, ol { color: #D1D5DB; margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; }
+    li { margin-bottom: 8px; }
+    
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #312E81;
+      color: #C7D2FE;
+    }
+    
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.88rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th {
+      background: #1E293B;
+      color: #F8FAFC;
+      font-weight: 600;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Code Block Container */
+    .code-container {
+      background: #090D16;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+
+    /* Print Controls */
+    .btn-print {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      z-index: 50;
+    }
+    .btn-print:hover { background: var(--primary-light); transform: translateY(-2px); }
+
+    @media print {
+      .sidebar, .btn-print, .sidebar-search { display: none !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .content { max-width: 100% !important; padding: 0 !important; }
+      .card, table, .code-container { border-color: #ccc !important; background: #fff !important; color: #000 !important; }
+      h1, h2, h3, strong { color: #000 !important; }
+      code { color: #000 !important; background: #eee !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>🚀 EntryKode CRM</h1>
+      <span class="badge-status">● Production Ready v2.4</span>
+      <p style="font-size: 0.8rem; color: #9CA3AF; margin-top: 6px;">Master Project Report for TL</p>
+    </div>
+
+    <div class="sidebar-search">
+      <input type="text" id="searchInput" placeholder="Search modules, models, APIs..." onkeyup="filterDocs()">
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group-title">Overview</div>
+      <a href="#summary" class="nav-link">1. Executive Summary</a>
+      <a href="#architecture" class="nav-link">2. System Architecture</a>
+
+      <div class="nav-group-title">15 Functional Modules</div>
+      <a href="#mod-1" class="nav-link">3.1 Executive Dashboard</a>
+      <a href="#mod-2" class="nav-link">3.2 Customer 360 & Dormancy</a>
+      <a href="#mod-3" class="nav-link">3.3 Leads & Sales Kanban</a>
+      <a href="#mod-4" class="nav-link">3.4 Products Catalog</a>
+      <a href="#mod-5" class="nav-link">3.5 Warehouse Inventory</a>
+      <a href="#mod-6" class="nav-link">3.6 Orders & Fulfillment Lock</a>
+      <a href="#mod-7" class="nav-link">3.7 Payment Receipts (Razorpay)</a>
+      <a href="#mod-8" class="nav-link">3.8 Returns & Razorpay RMA</a>
+      <a href="#mod-9" class="nav-link">3.9 Support Ticket Threads</a>
+      <a href="#mod-10" class="nav-link">3.10 Campaigns 4-Stage Lifecycle</a>
+      <a href="#mod-11" class="nav-link">3.11 Tasks 0ms Reactive Tracker</a>
+      <a href="#mod-12" class="nav-link">3.12 Reports & BI Analytics</a>
+      <a href="#mod-13" class="nav-link">3.13 Employees & 4-Tier RBAC</a>
+      <a href="#mod-14" class="nav-link">3.14 Settings & Validation Box</a>
+      <a href="#mod-15" class="nav-link">3.15 Immutable Audit Ledger</a>
+
+      <div class="nav-group-title">Data & Specifications</div>
+      <a href="#database" class="nav-link">4. Database (13 Models)</a>
+      <a href="#api" class="nav-link">5. REST API Directory</a>
+      <a href="#qa" class="nav-link">6. Bug Fixes & QA Log</a>
+      <a href="#hosting" class="nav-link">7. GitHub Hosting Guide</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="content">
+
+    <!-- Hero Header -->
+    <header class="hero">
+      <h1>EntryKode Centralized E-Commerce CRM Suite</h1>
+      <p>Comprehensive Master Project Report, Technical Blueprint, and Architecture Documentation prepared for Engineering Leadership and Team Lead review.</p>
+      
+      <div class="meta-bar">
+        <div class="meta-item">Lead: <strong>Sanjay D (Super Admin & Full Stack Lead)</strong></div>
+        <div class="meta-item">Organization: <strong>EntryKode Technologies</strong></div>
+        <div class="meta-item">Stack: <strong>MongoDB • Express • React 18 • Node v22</strong></div>
+        <div class="meta-item">Date: <strong>14 November 2026</strong></div>
+      </div>
+    </header>
+
+    <!-- 1. Executive Summary -->
+    <section id="summary">
+      <h2>1. Executive Summary & Business Value</h2>
+      <div class="card">
+        <p><strong>EntryKode CRM</strong> is a high-performance, enterprise-grade e-commerce operations cockpit. It brings together multi-channel order processing, cryptographic payment reconciliation (Razorpay), physical return inspections (RMA), customer 360 retention intelligence with automated dormancy detection, multi-agent support ticket threads, and cohort marketing into one coherent, reactive dashboard.</p>
+        
+        <h3>Enterprise Architecture Principles</h3>
+        <ul>
+          <li><strong>Decoupled React SPA & Modular Express API:</strong> Scalable micro-module backend architecture paired with an ultra-responsive React 18 + Vite frontend.</li>
+          <li><strong>Deterministic Data Integrity:</strong> Zero hardcoded heuristics or artificial metric overrides; all counters are bound 1:1 to MongoDB collections.</li>
+          <li><strong>Sub-second Reactive UX:</strong> Optimistic TanStack Query mutations ensuring 0ms perceived latency for task completions and status transitions.</li>
+          <li><strong>Cryptographically Verified Payments & Refunds:</strong> Complete Razorpay integration with UTR tracking, official printable settlement receipts, and automated instant gateway refunds.</li>
+          <li><strong>Strict 4-Tier RBAC:</strong> Granular permissions partitioning access across Super Admin, Admin, Sales Manager, and Support Manager.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 2. System Architecture -->
+    <section id="architecture">
+      <h2>2. End-to-End System Architecture</h2>
+      <div class="card">
+        <div class="mermaid">
+flowchart LR
+    subgraph Frontend["Frontend Tier (React 18 + Vite 5.4)"]
+        UI["Tailwind CSS 3.4 & Lucide Icons"]
+        Router["React Router v6 (Protected / Public Guards)"]
+        Query["TanStack Query Cache v5 (0ms Optimistic Mutations)"]
+        Axios["Axios Interceptor (Bearer JWT + Auto-Refresh)"]
+        UI --> Router --> Query --> Axios
+    end
+
+    subgraph Backend["Backend Tier (Node.js v22 + Express)"]
+        AuthMid["JWT Auth & Role Guard Middleware"]
+        ValMid["Zod & Mongoose Validation Layer"]
+        Controllers["15 Modular Feature Controllers"]
+        Services["Business Logic & Audit Logger"]
+        AuthMid --> ValMid --> Controllers --> Services
+    end
+
+    subgraph Storage["Data & External Services"]
+        Mongo[("MongoDB Native 9.0 (ecommerce_crm)")]
+        RzpAPI["Razorpay Enterprise Payment Gateway"]
+        Services --> Mongo
+        Services --> RzpAPI
+    end
+
+    Axios -- "HTTP REST (Port 5000)" --> AuthMid
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. All 15 Modules -->
+    <section id="modules">
+      <h2>3. Exhaustive Breakdown of All 15 Functional Modules</h2>
+
+      <div class="card" id="mod-1">
+        <div class="card-title">
+          <span>3.1 Executive Dashboard & Real-Time KPI Analytics</span>
+          <span class="tag">Module 1</span>
+        </div>
+        <p>Serves as the executive flight deck. Displays accurately calculated revenue in INR, total orders, and bound active customer counts (5 active accounts in MongoDB). Features interactive Recharts revenue velocity curves, fulfillment donut charts, debounced global search across all entities, and reactive stock alert notifications with individual dismissal and "Mark all as read" capability.</p>
+      </div>
+
+      <div class="card" id="mod-2">
+        <div class="card-title">
+          <span>3.2 Customer 360 & Automated Dormancy Governance</span>
+          <span class="tag">Module 2</span>
+        </div>
+        <p>Comprehensive customer demographic aggregation and retention intelligence. Automatically executes the <strong>1-Year Dormancy Engine</strong>: Any customer with no recorded orders or activity for &gt; 365 days is dynamically classified as <code>INACTIVE</code> with an amber dormancy badge (tested with live verified customer Suresh Kumar, CUST-00105, 456 days dormant). Includes slide-over Customer 360 profile drawer and standardized address normalizers.</p>
+      </div>
+
+      <div class="card" id="mod-3">
+        <div class="card-title">
+          <span>3.3 Leads & Sales Conversion Pipeline (Kanban)</span>
+          <span class="tag">Module 3</span>
+        </div>
+        <p>Visual drag-and-drop Kanban managing B2B and prospective retail leads through stages: <code>NEW</code> &rarr; <code>CONTACTED</code> &rarr; <code>QUALIFIED</code> &rarr; <code>PROPOSAL</code> &rarr; <code>WON / LOST</code>. Automatically converts <code>WON</code> leads into active customer records in MongoDB.</p>
+      </div>
+
+      <div class="card" id="mod-4">
+        <div class="card-title">
+          <span>3.4 Product Catalog & SKU Management</span>
+          <span class="tag">Module 4</span>
+        </div>
+        <p>Master catalog management for SKU creation, price definitions, cost analysis, and stock allocations. Implements strict data validations ensuring positive pricing, unique SKU uppercase constraints, and real-time category tagging.</p>
+      </div>
+
+      <div class="card" id="mod-5">
+        <div class="card-title">
+          <span>3.5 Warehouse Inventory & Stock Movement Ledger</span>
+          <span class="tag">Module 5</span>
+        </div>
+        <p>Warehouse safety stock monitoring with automated early-warning alerts for items with &le; 10 units remaining. Backed by an immutable <code>StockMovement</code> ledger recording every restock, sale, return restock, and damaged write-off with delta quantities and staff references.</p>
+      </div>
+
+      <div class="card" id="mod-6">
+        <div class="card-title">
+          <span>3.6 Orders, Fulfillment & Delivery Terminal Lock</span>
+          <span class="tag">Module 6</span>
+        </div>
+        <p>Comprehensive order lifecycle pipeline: <code>PENDING</code> &rarr; <code>CONFIRMED</code> &rarr; <code>PROCESSING</code> &rarr; <code>SHIPPED</code> &rarr; <code>DELIVERED</code>. Once an order reaches <code>DELIVERED</code>, the "Update" button is permanently hidden and replaced with <code>✓ Delivered (Finalized)</code> to prevent unauthorized status changes.</p>
+      </div>
+
+      <div class="card" id="mod-7">
+        <div class="card-title">
+          <span>3.7 Payment Gateway Integration & Settlement Receipts</span>
+          <span class="tag">Module 7</span>
+        </div>
+        <p>Integrates the official Razorpay Payment Gateway. Built dedicated <code>GatewayReceiptModal.jsx</code> providing an official settlement receipt with verified <code>PAID & SETTLED</code> stamp, Razorpay Transaction ID (UTR reference with 1-click clipboard copy), merchant GSTIN, itemized order breakdown, and browser print capability.</p>
+      </div>
+
+      <div class="card" id="mod-8">
+        <div class="card-title">
+          <span>3.8 Returns, Reverse Logistics & Razorpay Refund Gateway (RMA)</span>
+          <span class="tag">Module 8</span>
+        </div>
+        <p>End-to-end Return Merchandise Authorization (RMA) workflow. Supports physical package inspection, evaluation of device condition, instant Razorpay gateway refunds, and clean rejection purge (completely removing rejected items from the active returns dashboard). The "Inspect / Change Verdict" button remains active at all times.</p>
+      </div>
+
+      <div class="card" id="mod-9">
+        <div class="card-title">
+          <span>3.9 Customer Support Ticket Threads & Escalations</span>
+          <span class="tag">Module 9</span>
+        </div>
+        <p>Multi-agent customer support ticketing system with chronological conversation history between customers and support staff. Includes an integrated <strong>Return Escalation Link</strong> with a 1-click <code>Go to Returns ➔</code> shortcut for quick RMA creation.</p>
+      </div>
+
+      <div class="card" id="mod-10">
+        <div class="card-title">
+          <span>3.10 Targeted Marketing Campaigns & 4-Stage Lifecycle</span>
+          <span class="tag">Module 10</span>
+        </div>
+        <p>Customer engagement campaigns across Email, SMS, and WhatsApp. Features full 4-stage lifecycle state transitions: <code>SCHEDULED</code> &harr; <code>ACTIVE</code> &harr; <code>PAUSED</code> &harr; <code>COMPLETED</code> with 1-click action buttons on every campaign card.</p>
+      </div>
+
+      <div class="card" id="mod-11">
+        <div class="card-title">
+          <span>3.11 Team Tasks & 0ms Reactive Deliverable Tracker</span>
+          <span class="tag">Module 11</span>
+        </div>
+        <p>Internal task assignment and accountability desk. Built with optimistic local state reconciliation providing <strong>0ms instantaneous checkbox completion toggling</strong>, string ID normalization for MongoDB ObjectIds, and active status filtering tabs.</p>
+      </div>
+
+      <div class="card" id="mod-12">
+        <div class="card-title">
+          <span>3.12 Business Intelligence, Analytics & Financial Export</span>
+          <span class="tag">Module 12</span>
+        </div>
+        <p>Executive reporting suite offering month-over-month revenue velocity metrics, AOV computations, customer acquisition analytics, and 1-click CSV data export for financial audits.</p>
+      </div>
+
+      <div class="card" id="mod-13">
+        <div class="card-title">
+          <span>3.13 Staff, Employees & 4-Tier RBAC Management</span>
+          <span class="tag">Module 13</span>
+        </div>
+        <p>Role-Based Access Control administration covering Super Admin, Admin, Sales Manager, and Support Manager. Allows adding employees, setting credentials, and configuring department permissions.</p>
+      </div>
+
+      <div class="card" id="mod-14">
+        <div class="card-title">
+          <span>3.14 System Settings, Security & Field Requirements Box</span>
+          <span class="tag">Module 14</span>
+        </div>
+        <p>Enterprise validation compliance box (<code>FieldRequirementsBox.jsx</code>) deployed across forms: validates password (8–18 chars, upper/lower, number/punct, no spaces/unicode), names (min 3 alphabetic), account numbers (9–18 digits), and 10-digit phone numbers.</p>
+      </div>
+
+      <div class="card" id="mod-15">
+        <div class="card-title">
+          <span>3.15 Immutable Audit Logging & Compliance Ledger</span>
+          <span class="tag">Module 15</span>
+        </div>
+        <p>Enterprise audit compliance recording every high-value operation (Logins, Refunds, Order Status Changes, Customer Modifications) with actor details, entity IDs, IP addresses, and timestamps.</p>
+      </div>
+    </section>
+
+    <!-- 4. Database Schema -->
+    <section id="database">
+      <h2>4. Exhaustive Database Model Specifications (All 13 Models)</h2>
+      <div class="card">
+        <div class="mermaid">
+erDiagram
+    User ||--o{ Task : "assigned to"
+    User ||--o{ AuditLog : "performed by"
+    Customer ||--o{ Order : "places"
+    Customer ||--o{ SupportTicket : "opens"
+    Order ||--|{ OrderItem : "contains"
+    Order ||--o{ Payment : "settled by"
+    Order ||--o{ Return : "initiates"
+    Product ||--|| Inventory : "tracked in"
+    Product ||--o{ StockMovement : "audited via"
+    Campaign }|--|{ Customer : "broadcasts to"
+    Lead ||--o| Customer : "converts into"
+
+    User {
+        ObjectId _id PK
+        string email UK
+        string password
+        string role
+        string firstName
+        string lastName
+    }
+    Customer {
+        ObjectId _id PK
+        string customerCode UK
+        string firstName
+        string lastName
+        string email UK
+        string segment
+        Date lastActivityDate
+    }
+    Order {
+        ObjectId _id PK
+        string orderNumber UK
+        ObjectId customer FK
+        string orderStatus
+        string paymentStatus
+        number totalAmountPaise
+    }
+    Return {
+        ObjectId _id PK
+        string rmaNumber UK
+        ObjectId order FK
+        string status
+        number totalRefundRequestedPaise
+    }
+        </div>
+
+        <h3>Database Model Directory</h3>
+        <table>
+          <thead>
+            <tr><th>Model Name</th><th>Mongoose Collection</th><th>Key Primary Fields</th><th>Relationships</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>User</strong></td><td><code>users</code></td><td>email, password, role, firstName, lastName</td><td>Tasks, AuditLogs</td></tr>
+            <tr><td><strong>Customer</strong></td><td><code>customers</code></td><td>customerCode, email, segment, lastActivityDate</td><td>Orders, Tickets</td></tr>
+            <tr><td><strong>Lead</strong></td><td><code>leads</code></td><td>leadCode, contactName, status, dealValue</td><td>Customer (conversion)</td></tr>
+            <tr><td><strong>Product</strong></td><td><code>products</code></td><td>sku, name, pricePaise, costPricePaise, status</td><td>Inventory, Orders</td></tr>
+            <tr><td><strong>Inventory</strong></td><td><code>inventories</code></td><td>product, sku, availableStock, lowStockThreshold</td><td>Product</td></tr>
+            <tr><td><strong>StockMovement</strong></td><td><code>stockmovements</code></td><td>product, sku, type, quantityDelta, performedBy</td><td>Product, User</td></tr>
+            <tr><td><strong>Order</strong></td><td><code>orders</code></td><td>orderNumber, customer, items, orderStatus, totalAmountPaise</td><td>Customer, Payments</td></tr>
+            <tr><td><strong>Payment</strong></td><td><code>payments</code></td><td>order, customer, transactionId, idempotencyKey, amountPaise</td><td>Order, Customer</td></tr>
+            <tr><td><strong>Return</strong></td><td><code>returns</code></td><td>rmaNumber, order, status, totalRefundRequestedPaise</td><td>Order, User</td></tr>
+            <tr><td><strong>SupportTicket</strong></td><td><code>supporttickets</code></td><td>ticketNumber, customer, priority, status, messages</td><td>Customer, User</td></tr>
+            <tr><td><strong>Campaign</strong></td><td><code>campaigns</code></td><td>name, channel, status, audienceSegment, contentHtml</td><td>Customer cohort</td></tr>
+            <tr><td><strong>Task</strong></td><td><code>tasks</code></td><td>title, assignedTo, priority, status, isCompleted</td><td>User</td></tr>
+            <tr><td><strong>AuditLog</strong></td><td><code>auditlogs</code></td><td>actor, action, entity, entityId, details, ipAddress</td><td>User</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 5. REST API -->
+    <section id="api">
+      <h2>5. Complete REST API Contract Directory</h2>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Endpoint</th><th>Module</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>POST</code></td><td><code>/api/v1/auth/login</code></td><td>Auth</td><td>Authenticate user & issue signed JWT</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/reports/dashboard</code></td><td>Dashboard</td><td>Real-time accurate business KPIs & revenue curves</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/customers</code></td><td>Customers</td><td>Customer directory with dormancy computation</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/orders</code></td><td>Orders</td><td>Fulfillment order list with gateway payment details</td></tr>
+            <tr><td><code>POST</code></td><td><code>/api/v1/payments/verify</code></td><td>Payments</td><td>Verify Razorpay signature & generate UTR receipt</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/returns</code></td><td>Returns</td><td>Fetch active returns (purges rejected returns)</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/returns/:id/inspect</code></td><td>Returns</td><td>Physical inspection verdict & Razorpay refund</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/campaigns/:id/status</code></td><td>Campaigns</td><td>1-Click campaign lifecycle toggle (Active/Paused/Done)</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/api/v1/tasks/:id</code></td><td>Tasks</td><td>0ms optimistic task completion toggle</td></tr>
+            <tr><td><code>GET</code></td><td><code>/api/v1/audit-logs</code></td><td>Settings</td><td>Forensic audit compliance log (Super Admin only)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. QA Log -->
+    <section id="qa">
+      <h2>6. Resolved Technical Challenges & Bug Fix Log</h2>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Reported Issue</th><th>Root Cause</th><th>Engineering Resolution</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Active Customers count showed 6 instead of 5</td><td>Test seed record in DB</td><td>Cleansed test record; bound card directly to <code>metrics.customers.totalActive</code></td></tr>
+            <tr><td>2</td><td>Returns rejection clutter on active view</td><td>Rejected returns remained in active list</td><td>Updated <code>handleRejectReturn</code> to purge rejected records completely from view</td></tr>
+            <tr><td>3</td><td>Gateway receipt re-opened payment checkout</td><td>Modal state collision</td><td>Engineered dedicated <code>GatewayReceiptModal.jsx</code> with verified UTR stamp</td></tr>
+            <tr><td>4</td><td>Delivered orders exposed "Update" button</td><td>Missing terminal state guard</td><td>Applied <code>!['DELIVERED', 'CANCELLED'].includes(status)</code> guard in table & drawer</td></tr>
+            <tr><td>5</td><td>1-year inactive customers not marked dormant</td><td>Static segment strings</td><td>Engineered dynamic <code>getComputedSegment</code> calculating dormancy (&gt; 365 days)</td></tr>
+            <tr><td>6</td><td>Task checkbox unresponsive</td><td>Network roundtrip & ID mismatch</td><td>Implemented optimistic local state (<code>localTasks</code>) and string ID normalization</td></tr>
+            <tr><td>7</td><td>Campaign status locked</td><td>Missing status mutation controls</td><td>Added 1-click status control buttons and dropdown overrides on cards</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 7. GitHub Hosting Guide -->
+    <section id="hosting">
+      <h2>7. GitHub Hosting & Live Deployment Guide</h2>
+      <div class="card">
+        <p>This interactive documentation portal is stored directly inside the <strong><code>/docs</code></strong> directory of the repository (<code>docs/index.html</code>).</p>
+        
+        <h3>How to Enable GitHub Pages (60-Second Setup)</h3>
+        <ol>
+          <li>Open your repository: <code>https://github.com/sanjaydinakaran29112004/Ecommerce-CRM</code></li>
+          <li>Click <strong>Settings</strong> at the top of the repository.</li>
+          <li>In the left sidebar, click <strong>Pages</strong>.</li>
+          <li>Under <strong>Branch</strong>, select:
+            <ul>
+              <li>Branch: <strong><code>develop</code></strong> (or <strong><code>main</code></strong>)</li>
+              <li>Folder: <strong><code>/docs</code></strong></li>
+            </ul>
+          </li>
+          <li>Click <strong>Save</strong>.</li>
+          <li>Within 60 seconds, your project report will be live at:  
+            <br>
+            <a href="https://sanjaydinakaran29112004.github.io/Ecommerce-CRM/" target="_blank" style="font-weight: 600; color: #38BDF8;">https://sanjaydinakaran29112004.github.io/Ecommerce-CRM/</a>
+          </li>
+        </ol>
+
+        <h3>Push to GitHub Terminal Command</h3>
+        <div class="code-container">
+          <code>git push origin main develop</code>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating Print to PDF Button -->
+  <button class="btn-print" onclick="window.print()">
+    🖨️ Print / Save as PDF
+  </button>
+
+  <script>
+    function filterDocs() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.card');
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = text.includes(q) ? 'block' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>
