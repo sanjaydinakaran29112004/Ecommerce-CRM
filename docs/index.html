@@ -655,10 +655,15 @@ erDiagram
 
   </main>
 
-  <!-- Floating Print to PDF Button -->
-  <button class="btn-print" onclick="window.print()">
-    🖨️ Print / Save as PDF
-  </button>
+  <!-- Floating Action Buttons -->
+  <div style="position: fixed; bottom: 24px; right: 24px; display: flex; gap: 12px; z-index: 50;">
+    <a href="./EntryKode_CRM_Master_Project_Report.docx" download class="btn-print" style="background: #2563EB; text-decoration: none;">
+      📥 Download Word (.docx)
+    </a>
+    <button class="btn-print" onclick="window.print()" style="position: static;">
+      🖨️ Print / PDF
+    </button>
+  </div>
 
   <script>
     function filterDocs() {
@@ -672,3 +677,4 @@ erDiagram
   </script>
 </body>
 </html>
+

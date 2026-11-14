@@ -3,6 +3,7 @@
 Built with the modern **MERN Stack** (MongoDB 9.0, Express.js, React 18, Vite 5.4, Node.js v22).
 
 [![Live Documentation](https://img.shields.io/badge/Live%20Hosted%20Docs-GitHub%20Pages-blueviolet?style=for-the-badge)](https://sanjaydinakaran29112004.github.io/Ecommerce-CRM/)
+[![Download Word Report](https://img.shields.io/badge/Download-Word%20Report%20(.docx)-2b579a?style=for-the-badge&logo=microsoftword&logoColor=white)](./EntryKode_CRM_Master_Project_Report.docx)
 [![Project Report](https://img.shields.io/badge/Documentation-Master%20Project%20Report-blue?style=for-the-badge)](./PROJECT_REPORT.md)
 [![Build Status](https://img.shields.io/badge/Production%20Build-Passing%20(0%20errors)-brightgreen?style=for-the-badge)](./PROJECT_REPORT.md)
 [![MERN Stack](https://img.shields.io/badge/Stack-MongoDB%20|%20Express%20|%20React%2018%20|%20Node%20v22-green?style=for-the-badge)](./PROJECT_REPORT.md)
@@ -19,8 +20,8 @@ Built with the modern **MERN Stack** (MongoDB 9.0, Express.js, React 18, Vite 5.
 
 ## 📑 Master Technical Blueprint & Project Report (For TL & Reviewers)
 > 📄 **Complete Technical & Architectural Project Report:**  
-> Please see the master document: **[PROJECT_REPORT.md](./PROJECT_REPORT.md)**  
-> *(Also available under [`docs/PROJECT_REPORT.md`](./docs/PROJECT_REPORT.md))*  
+> - **Markdown Master Document:** **[PROJECT_REPORT.md](./PROJECT_REPORT.md)** *(also in [`docs/PROJECT_REPORT.md`](./docs/PROJECT_REPORT.md))*  
+> - **Downloadable Microsoft Word (.docx):** **[EntryKode_CRM_Master_Project_Report.docx](./EntryKode_CRM_Master_Project_Report.docx)** *(ready to submit or print)*  
 > Includes complete architectural schematics, all 15 module breakdowns, all 13 database model specifications, REST API contracts, security design, and QA resolution logs.
 
 ---
